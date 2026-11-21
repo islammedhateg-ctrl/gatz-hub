@@ -650,6 +650,7 @@ body.big-targets .switch::after { width: 24px; height: 24px; }
 .badge-success { background: var(--success-soft); color: var(--success); }
 .badge-pending { background: var(--warning-soft); color: var(--warning); }
 .badge-danger { background: var(--danger-soft); color: var(--danger); }
+.badge-muted { background: var(--surface-3); color: var(--muted); }
 .badge-info { background: var(--info-soft); color: var(--info); }
 .badge-gold { background: var(--gold-soft); color: var(--gold); }
 .badge-zone { background: var(--info-soft); color: var(--info); }
@@ -4715,7 +4716,9 @@ function buildBookingsTable(list, compact = false) {
           <div style="font-weight:600;">${formatMoney(b.deposit)} ${cur()}</div>
           ${b.cancelled
             ? `<span class="badge badge-danger">${t('booking.cancelledBadge')}</span>`
-            : `<span class="badge ${b.verified ? 'badge-success' : 'badge-pending'}">${b.verified ? t('filter.verified') : t('filter.pending')}</span>`}
+            : isBookingExpired(b)
+              ? `<span class="badge badge-muted">${expiredLabel()}</span>`
+              : `<span class="badge ${b.verified ? 'badge-success' : 'badge-pending'}">${b.verified ? t('filter.verified') : t('filter.pending')}</span>`}
         </td>
         <td>
           <div style="display:flex; gap:4px;">
@@ -4999,6 +5002,9 @@ function selectZone(id) {
 
 // منع اختيار تاريخ ماضٍ في الحجز
 function todayStr() { return new Date().toISOString().split('T')[0]; }
+// الحجز المنتهي: تاريخه قبل اليوم (يظل في السجل لكن لا يُسمح بدخوله)
+function isBookingExpired(b) { return !!b && !!b.date && b.date < todayStr(); }
+function expiredLabel() { return currentLang === 'ar' ? 'منتهي' : 'Expired'; }
 function updateDateMin() {
   const bd = document.getElementById('b-date');
   if (bd) bd.min = todayStr();
@@ -5644,7 +5650,7 @@ function openBookingDetails(id) {
     ['details.guests', `${b.checkedIn} / ${b.guests}`],
     ['details.deposit', `${formatMoney(b.deposit)} ${cur()}`],
     ['details.payment', trValue(b.payment)],
-    ['details.status', b.cancelled ? t('booking.cancelledBadge') : (b.verified ? t('filter.verified') : t('filter.pending'))]
+    ['details.status', b.cancelled ? t('booking.cancelledBadge') : (isBookingExpired(b) ? expiredLabel() : (b.verified ? t('filter.verified') : t('filter.pending')))]
   ];
   if (b.cancelled) {
     rows.push(['cancel.reasonLabel', b.cancelReason ? cancelReasonLabel(b.cancelReason) : (currentLang === 'ar' ? 'غير محدد' : 'Not specified')]);
@@ -5864,7 +5870,9 @@ function renderFinance() {
       }</td>
       <td>${b.cancelled
         ? `<span class="badge badge-danger">${t('booking.cancelledBadge')}</span>`
-        : `<span class="badge ${b.verified ? 'badge-success' : 'badge-pending'}">${b.verified ? t('filter.verified') : t('filter.pending')}</span>`}</td>
+        : isBookingExpired(b)
+          ? `<span class="badge badge-muted">${expiredLabel()}</span>`
+          : `<span class="badge ${b.verified ? 'badge-success' : 'badge-pending'}">${b.verified ? t('filter.verified') : t('filter.pending')}</span>`}</td>
       <td>
         ${b.cancelled ? '—'
         : (isPendingTransfer(b)
@@ -6696,6 +6704,12 @@ function handleScannedCode(code) {
 
   const b = bookings.find(x => x.id === cleaned);
   if (b) {
+    if (isBookingExpired(b)) {
+      if (doorBeepEnabled) playBeep(330, 220);
+      toast((currentLang === 'ar' ? 'هذا الحجز منتهي — تاريخه ' : 'This booking has expired — date: ') + b.date, 'warning');
+      document.getElementById('scan-result-card').style.display = 'none';
+      return;
+    }
     lookupBookingForDoor();
     // auto check-in +1
     incrementGuest(1);
@@ -6744,6 +6758,11 @@ function lookupBookingForDoor() {
     card.style.display = 'none';
     return;
   }
+  if (isBookingExpired(b)) {
+    toast((currentLang === 'ar' ? 'هذا الحجز منتهي — تاريخه ' : 'This booking has expired — date: ') + b.date, 'warning');
+    card.style.display = 'none';
+    return;
+  }
   activeDoorBookingId = b.id;
   const zone = zones.find(z => z.id === b.zoneId) || { name: b.zoneId, nameEn: b.zoneId };
   document.getElementById('door-b-name').textContent = b.name;
@@ -6768,7 +6787,7 @@ function updateProgressRing(checked, expected) {
 function incrementGuest(count) {
   if (!activeDoorBookingId) return;
   const b = bookings.find(x => x.id === activeDoorBookingId);
-  if (!b) return;
+  if (!b || isBookingExpired(b)) return;
   if (b.checkedIn + count > b.guests) {
     toast('Exceeds expected guests', 'warning');
   }
