@@ -768,6 +768,8 @@ tbody tr:hover { background: var(--surface-2); }
 tbody tr.selected { background: var(--primary-soft); }
 
 /* Zone capacity bars */
+.zone-edit-btn { color: var(--primary) !important; border-radius: 9px !important; }
+.zone-edit-btn:hover { background: var(--primary-soft) !important; }
 .zone-bar { margin-bottom: 12px; }
 .zone-bar .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: .85rem; }
 .zone-bar .row b { font-weight: 700; }
@@ -2855,14 +2857,14 @@ const I18N = {
     'finance.ledger': 'سجل العمليات',
     'zones.title': 'المناطق (Zones)',
     'zones.subtitle': 'حالة وسعة كل منطقة',
-    'zones.edit': 'Edit zone',
-    'zones.editTitle': 'Edit zone',
-    'zones.nameAr': 'Name (Arabic)',
-    'zones.nameEn': 'Name (English)',
-    'zones.capacity': 'Capacity (guests)',
-    'zones.minDeposit': 'Minimum deposit',
-    'zones.active': 'Zone active',
-    'zones.activeHint': 'Shown in bookings',
+    'zones.edit': 'تعديل المنطقة',
+    'zones.editTitle': 'تعديل المنطقة',
+    'zones.nameAr': 'الاسم (عربي)',
+    'zones.nameEn': 'الاسم (إنجليزي)',
+    'zones.capacity': 'السعة (أفراد)',
+    'zones.minDeposit': 'الحد الأدنى للديبوزيت',
+    'zones.active': 'المنطقة مفعّلة',
+    'zones.activeHint': 'تظهر في الحجوزات',
     'door.title': 'بوابة الدخول (QR Scan)',
     'door.subtitle': 'تسجيل دخول الضيوف وحساب الأعداد',
     'door.scanTitle': 'مسح كود الدخول',
@@ -3237,14 +3239,14 @@ const I18N = {
     'finance.ledger': 'Operations Log',
     'zones.title': 'Zones',
     'zones.subtitle': 'Status and capacity of each zone',
-    'zones.edit': 'تعديل المنطقة',
-    'zones.editTitle': 'تعديل المنطقة',
-    'zones.nameAr': 'الاسم (عربي)',
-    'zones.nameEn': 'الاسم (إنجليزي)',
-    'zones.capacity': 'السعة (أفراد)',
-    'zones.minDeposit': 'الحد الأدنى للديبوزيت',
-    'zones.active': 'المنطقة مفعّلة',
-    'zones.activeHint': 'تظهر في الحجوزات',
+    'zones.edit': 'Edit zone',
+    'zones.editTitle': 'Edit zone',
+    'zones.nameAr': 'Name (Arabic)',
+    'zones.nameEn': 'Name (English)',
+    'zones.capacity': 'Capacity (guests)',
+    'zones.minDeposit': 'Minimum deposit',
+    'zones.active': 'Zone active',
+    'zones.activeHint': 'Shown in bookings',
     'door.title': 'Door Entry (QR Scan)',
     'door.subtitle': 'Check-in guests and count attendance',
     'door.scanTitle': 'Scan Entry Code',
@@ -4904,7 +4906,7 @@ function renderZones() {
         <div class="card-header">
           <div class="card-title"><i class="fa-solid fa-map-location-dot"></i> ${escapeHtml(zoneName(z))}</div>
           <div style="display:flex; align-items:center; gap:6px;">
-            ${currentRole === 'admin' ? `<button class="btn btn-ghost btn-sm" onclick="openZoneEdit('${jsSafe(z.id)}')" title="${t('zones.edit')}"><i class="fa-solid fa-pen"></i></button>` : ''}
+            ${currentRole === 'admin' ? `<button class="btn btn-ghost btn-sm zone-edit-btn" onclick="openZoneEdit('${jsSafe(z.id)}')" title="${t('zones.edit')}"><i class="fa-solid fa-pen-to-square"></i></button>` : ''}
             <span class="badge ${z.active ? 'badge-success' : 'badge-pending'}" data-i18n="${z.active ? 'status.available' : 'status.closed'}">${z.active ? 'متاح' : 'مغلق'}</span>
           </div>
         </div>
