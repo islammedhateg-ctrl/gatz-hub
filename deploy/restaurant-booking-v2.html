@@ -2034,7 +2034,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           <h2><i class="fa-solid fa-qrcode"></i> <span data-i18n="door.scanTitle">مسح كود الدخول</span></h2>
           <p data-i18n="door.scanHint">أدخل رقم الحجز (BK-) أو امسح QR</p>
           <div class="scan-input-row">
-            <input class="scan-input" type="text" id="scan-input" data-i18n-placeholder="door.placeholder" placeholder="BK-1001" value="BK-" oninput="enforceBkPrefix(this)" onfocus="enforceBkPrefix(this)">
+            <input class="scan-input" type="text" id="scan-input" data-i18n-placeholder="door.placeholder" placeholder="BK-1001" value="BK-" oninput="enforceBkPrefix(this)" onfocus="enforceBkPrefix(this)" onkeydown="if(event.key==='Enter')lookupBookingForDoor()">
             <button class="btn btn-primary" onclick="lookupBookingForDoor()"><i class="fa-solid fa-magnifying-glass"></i></button>
           </div>
           <div style="margin-top:10px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
