@@ -1086,6 +1086,8 @@ tbody tr.selected { background: var(--primary-soft); }
   #role-switcher, .topbar .role-switcher { display: none !important; }
   .topbar-actions { gap: 4px; margin-inline-start: auto; }
   .topbar-actions .icon-btn { width: 40px; height: 40px; font-size: 1rem; }
+  /* قائمة الإشعارات على الموبايل: عرض مناسب + طبقة أعلى */
+  #notif-dropdown { width: min(92vw, 360px) !important; max-height: 60vh !important; z-index: 300 !important; }
   .mobile-menu-btn { width: 44px; height: 44px; }
 
   /* المحتوى */
@@ -6202,6 +6204,8 @@ function addNotification(type, title, body, bookingId) {
   updateNotifBadge();
   renderNotifications();
   playNotificationSound(type);
+  // تنبيه مرئي واضح فور وصول الإشعار
+  if (typeof toast === 'function') toast('🔔 ' + title + (body ? ' — ' + body : ''), 'info', 5000);
   // broadcast to other tabs
   if (notifBroadcast) notifBroadcast.postMessage('refresh');
   // native browser notification
@@ -6306,8 +6310,7 @@ function toggleNotifications() {
   dd.style.display = open ? 'block' : 'none';
   if (open) {
     renderNotifications();
-    // تعليم كمقروء عند الفتح (بعد تأخير قصير ليُرى الـ badge أولاً)
-    setTimeout(() => { markAllRead(); }, 900);
+    // لا نُعلّم كمقروء تلقائياً — الشارة تفضل واضحة لحد ما المستخدم يختار
   }
 }
 
@@ -6465,7 +6468,7 @@ async function startQrScan() {
   const startBtn = document.getElementById('btn-start-scan');
   const stopBtn = document.getElementById('btn-stop-scan');
 
-  // الكمبيوتر: تنبيه واضح باللون الأحمر — المسح بالكاميرا مخصص للموبايل فقط
+  // الكاميرا مخصصة للموبايل فقط — الكمبيوتر يستخدم إدخال BK- يدوياً
   const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) && window.innerWidth > 900;
   if (isDesktop) {
     status.style.color = 'var(--danger)';
@@ -6514,14 +6517,13 @@ async function startQrScan() {
   qrScanning = true;
   qrFrames = 0;
 
-  // BarcodeDetector الأصلي (أسرع وأدق على أندرويد) إن وُجد
+  // ماسح مزدوج: BarcodeDetector الأصلي + html5-qrcode كاحتياطي (يغطي iOS/Safari)
   qrDetector = null;
   if (window.BarcodeDetector) {
     try { qrDetector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { /* تجاهل */ }
   }
-  // وإلا نستخدم html5-qrcode على صورة الإطار
   qrFrameScanner = null;
-  if (!qrDetector && window.Html5Qrcode) {
+  if (window.Html5Qrcode) {
     let el = document.getElementById('qr-frame-reader');
     if (!el) {
       el = document.createElement('div');
@@ -6531,25 +6533,32 @@ async function startQrScan() {
     }
     try { qrFrameScanner = new Html5Qrcode('qr-frame-reader'); } catch (e) { /* تجاهل */ }
   }
+  if (!qrDetector && !qrFrameScanner) {
+    status.textContent = currentLang === 'ar' ? 'مكتبة المسح غير محمّلة — تحقق من الإنترنت' : 'Scanner library not loaded — check internet';
+    stopQrScan();
+    return;
+  }
 
-  status.textContent = (currentLang === 'ar' ? 'وجّه الكاميرا نحو QR — محاولة ' : 'Point at QR — attempt ') + '0' +
-    (qrDetector ? ' (BarcodeDetector)' : ' (img scan)');
+  status.textContent = (currentLang === 'ar' ? 'وجّه الكاميرا نحو QR...' : 'Point camera at the QR code...');
 
   const tick = async () => {
     if (!qrScanning) return;
     qrFrames++;
     let text = '';
     try {
-      if (qrDetector && video.readyState >= 2) {
+      // طريقة 1: BarcodeDetector (أندرويد/Chrome)
+      if (!text && qrDetector && video.readyState >= 2) {
         const found = await qrDetector.detect(video);
         if (found && found.length) text = found[0].rawValue;
-      } else if (qrFrameScanner && video.readyState >= 2 && video.videoWidth) {
+      }
+      // طريقة 2: html5-qrcode على إطار الكاميرا (iOS/Safari وأي متصفح)
+      if (!text && qrFrameScanner && video.readyState >= 2 && video.videoWidth) {
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         canvas.getContext('2d').drawImage(video, 0, 0);
         const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-        if (blob) text = await qrFrameScanner.scanFile(blob, true);
+        if (blob) text = await qrFrameScanner.scanFile(blob, true).catch(() => '');
       }
     } catch (e) { /* فشل هذه المحاولة — نكمل */ }
 
@@ -6564,8 +6573,8 @@ async function startQrScan() {
         return;
       }
     }
-    status.textContent = (currentLang === 'ar' ? 'جارٍ البحث... محاولة ' : 'Searching... attempt ') + qrFrames;
-    qrLoop = setTimeout(tick, qrDetector ? 90 : 200);
+    if (qrFrames === 8) status.textContent = currentLang === 'ar' ? 'وجّه الكاميرا نحو رمز QR...' : 'Point camera at the QR code...';
+    qrLoop = setTimeout(tick, qrDetector ? 90 : 160);
   };
   tick();
 }
