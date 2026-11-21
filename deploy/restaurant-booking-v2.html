@@ -7334,9 +7334,18 @@ async function cloudLoad() {
   finally { CLOUD.loading = false; }
 }
 
-// إجبار حقل البحث على صيغة BK- فقط (ثابتة — لا تُمسح ولا تُغيّر)
+// إجبار حقل البحث على صيغة BK- فقط — ذكي: لا يكرر البادئة أثناء الكتابة
 function enforceBkPrefix(el) {
-  if (!el.value.toUpperCase().startsWith('BK-')) el.value = 'BK-' + el.value.replace(/^BK-/i, '');
+  if (!el) return;
+  let v = String(el.value || '').trim();
+  const up = v.toUpperCase();
+  // المستخدم لسه بيكتب البادئة (B / BK / BK-) — سيبه كمل هو
+  if (up === 'B' || up === 'BK' || up === 'BK-') return;
+  // البادئة موجودة بالفعل — وحّد شكلها بس
+  if (up.startsWith('BK-')) { el.value = 'BK-' + v.slice(3); return; }
+  // أي قيمة تانية (رقم أو نص) — ضيف البادئة بعد شيل أي بقايا
+  v = v.replace(/^BK-?/i, '').replace(/^B$|^BK$/i, '');
+  el.value = 'BK-' + v;
 }
 // منع إشعار مكرر على الجهاز اللي عمل التغيير بنفسه
 function cloudNotifyLocal(type, title, body, key) {
