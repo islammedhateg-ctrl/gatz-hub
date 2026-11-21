@@ -1758,13 +1758,13 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 <div class="form-group">
                   <label data-i18n="field.phone">رقم التليفون <span class="req">*</span></label>
                   <div class="has-icon"><i class="fa-solid fa-phone field-icon"></i>
-                    <input class="input" type="tel" id="b-phone" placeholder="01xxxxxxxxx" required>
+                    <input class="input" type="tel" id="b-phone" placeholder="01xxxxxxxxx" inputmode="numeric" maxlength="14" oninput="sanitizePhoneInput(this)" required>
                   </div>
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.whatsapp">واتساب (لإرسال QR) <span class="req">*</span></label>
                   <div class="has-icon"><i class="fa-brands fa-whatsapp field-icon"></i>
-                    <input class="input" type="tel" id="b-whatsapp" placeholder="01xxxxxxxxx" required>
+                    <input class="input" type="tel" id="b-whatsapp" placeholder="01xxxxxxxxx" inputmode="numeric" maxlength="14" oninput="sanitizePhoneInput(this)" required>
                   </div>
                 </div>
                 <div class="form-group">
@@ -2587,7 +2587,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
         <div class="form-group" style="margin-bottom:12px;">
           <label data-i18n="guestreg.phone">رقم الهاتف <span class="req">*</span></label>
           <div class="has-icon"><i class="fa-solid fa-phone field-icon"></i>
-            <input class="input" type="tel" id="gr-phone" placeholder="01xxxxxxxxx">
+            <input class="input" type="tel" id="gr-phone" placeholder="01xxxxxxxxx" inputmode="numeric" maxlength="14" oninput="sanitizePhoneInput(this)">
           </div>
         </div>
         <div class="form-group" style="margin-bottom:14px;">
@@ -5228,6 +5228,7 @@ function saveBooking() {
   if (!name || !phone || !whatsapp || !date || !guests || !selectedZoneId) {
     toast(t('toast.error'), 'error'); return;
   }
+  if (!validatePhones([['الهاتف', phone], ['واتساب', whatsapp]])) return;
   if (date < todayStr()) {
     toast(currentLang === 'ar' ? 'لا يمكن حجز تاريخ ماضٍ' : 'Past dates are not allowed', 'error');
     checkBookingDate(); return;
@@ -5407,6 +5408,12 @@ async function submitGuestRegistration() {
   if (!name || !phone || !birth) {
     errEl.textContent = t('guestreg.errFields'); errEl.style.display = 'block'; return;
   }
+  if (!isValidEgyptPhone(phone)) {
+    errEl.textContent = currentLang === 'ar'
+      ? 'رقم التليفون غير صالح — يجب أن يبدأ بـ 01 ويتكون من 11 رقماً'
+      : 'Invalid phone — must start with 01 and be 11 digits';
+    errEl.style.display = 'block'; return;
+  }
   errEl.style.display = 'none';
   const data = currentInviteData || {};
   let guest;
@@ -5486,6 +5493,40 @@ function phoneForWa(phone) {
   // أرقام قصيرة/بدون بادئة → أضف 20
   else if (!p.startsWith('20')) p = '20' + p;
   return p;
+}
+
+/* === تحقق وتنظيف أرقام التليفون المصرية === */
+// يحوّل أي صيغة إلى 01xxxxxxxxx (11 رقم) — المسافات/الشرطات/+20 تُزال تلقائياً
+function normalizeEgyptPhone(value) {
+  let p = String(value || '').replace(/[^\d]/g, '');
+  if (p.startsWith('0020')) p = '0' + p.slice(4);
+  else if (p.startsWith('20') && p.length === 12) p = '0' + p.slice(2);
+  else if (p.startsWith('20') && p.length === 11) p = '0' + p.slice(2);
+  return p;
+}
+// رقم مصري صحيح: يبدأ 01 وطوله 11 والرقم التالت من شبكات مصر
+function isValidEgyptPhone(value) {
+  const p = normalizeEgyptPhone(value);
+  return /^01[0-2,5]\d{8}$/.test(p);
+}
+// تنظيف الحقل أثناء الكتابة (يسمح بالأرقام والمسافات والشرطات فقط)
+function sanitizePhoneInput(el) {
+  if (!el) return;
+  const caret = el.selectionStart;
+  const before = el.value.slice(0, caret).replace(/[^\d\s\-]/g, '').length;
+  el.value = el.value.replace(/[^\d\s\-]/g, '');
+  try { el.setSelectionRange(before, before); } catch (e) {}
+}
+// تحقق عند الحفظ — يرجّع true أو يعرض رسالة ويرجّع false
+function validatePhones(fields) {
+  for (const [label, value] of fields) {
+    if (value && !isValidEgyptPhone(value)) {
+      toast((currentLang === 'ar' ? 'رقم تليفون غير صالح: ' : 'Invalid phone number: ') + label +
+        (currentLang === 'ar' ? ' — يجب أن يبدأ بـ 01 ويتكون من 11 رقماً' : ' — must start with 01 and be 11 digits'), 'error');
+      return false;
+    }
+  }
+  return true;
 }
 
 /* ============================================================
