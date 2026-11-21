@@ -6314,11 +6314,17 @@ function positionNotifDropdown() {
   dd.style.right = 'auto';
   dd.style.left = 'auto';
   const r = btn.getBoundingClientRect();
-  const w = dd.offsetWidth || Math.min(window.innerWidth * 0.92, 380);
+  let w = dd.offsetWidth || Math.min(window.innerWidth * 0.92, 380);
   const gap = 8;
   const rtl = document.documentElement.dir === 'rtl';
   // القائمة دايماً تحت الزر: في RTL الحافة اليمنى للقائمة = الحافة اليمنى للزر
   // وفي LTR الحافة اليسرى للقائمة = الحافة اليسرى للزر
+  // على الموبايل: عرض القائمة يناسب الشاشة، والمحاذاة تُقص لأقصى حد مسموح
+  const mobile = window.innerWidth < 520;
+  if (mobile) {
+    dd.style.width = Math.min(window.innerWidth - 16, 380) + 'px';
+    w = dd.offsetWidth;
+  }
   let left = rtl ? (r.right - w) : r.left;
   left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
   const right = window.innerWidth - left - w;
