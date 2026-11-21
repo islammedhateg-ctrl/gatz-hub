@@ -11,12 +11,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Gatz. Hub">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- الخطوط: system-ui فقط (مفيش تحميل خارجي) -->
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
-<!-- أنماط غير حاجزة: الصفحة تفتح فوراً حتى لو كانت الشبكة بطيئة -->
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
 <!-- سكربتات مؤجلة: لا تمنع ظهور الصفحة (تُستخدم عند فتح QR / البوابة فقط) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
@@ -2215,18 +2212,6 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
             <button class="btn btn-outline" onclick="setTheme('light')"><i class="fa-solid fa-sun"></i> <span data-i18n="theme.light">فاتح</span></button>
             <button class="btn btn-outline" onclick="setTheme('dark')"><i class="fa-solid fa-moon"></i> <span data-i18n="theme.dark">داكن</span></button>
           </div>
-          <div class="form-group" style="margin-top:12px;">
-            <label data-i18n="settings.font">الخط</label>
-            <div class="has-icon"><i class="fa-solid fa-font field-icon"></i>
-              <select class="input" id="font-select" onchange="setFont(this.value)">
-                <option value="Cairo">Cairo</option>
-                <option value="Tajawal">Tajawal</option>
-                <option value="Almarai">Almarai</option>
-                <option value="IBM Plex Sans Arabic">IBM Plex Sans Arabic</option>
-                <option value="Noto Sans Arabic">Noto Sans Arabic</option>
-              </select>
-            </div>
-          </div>
         </div>
 
         <!-- UX Preferences -->
@@ -3556,15 +3541,9 @@ function setTheme(theme) {
   applyTheme();
 }
 function applyFont() {
-  document.documentElement.style.setProperty('--font', `'${currentFont}', system-ui, -apple-system, sans-serif`);
+  // خط النظام فقط — بدون أي تحميل خارجي
+  document.documentElement.style.setProperty('--font', `system-ui, -apple-system, 'Segoe UI', Tahoma, sans-serif`);
   document.body.style.fontFamily = `var(--font)`;
-}
-function setFont(font) {
-  currentFont = font;
-  localStorage.setItem('rest_font', font);
-  applyFont();
-  const sel = document.getElementById('font-select');
-  if (sel) sel.value = font;
 }
 function setSound(enabled) {
   soundEnabled = enabled;
@@ -3837,7 +3816,7 @@ let soundEnabled = localStorage.getItem('rest_sound') !== 'false'; // default tr
 let volumeLevel = Number(localStorage.getItem('rest_volume') || 70);
 let doorBeepEnabled = localStorage.getItem('rest_door_beep') !== 'false'; // default true
 let notifSoundStyle = localStorage.getItem('rest_notif_sound_style') || 'chime';
-let currentFont = localStorage.getItem('rest_font') || 'IBM Plex Sans Arabic';
+let currentFont = 'system-ui';
 let uxPrefs = JSON.parse(localStorage.getItem('rest_ux') || '{}');
 uxPrefs = Object.assign({ compact:false, animations:true, autoTheme:false, bigTargets:false }, uxPrefs);
 let notifSoundNew = localStorage.getItem('rest_notif_sound_new') !== 'false';
@@ -4192,7 +4171,6 @@ function showTab(tabId, btn) {
     document.getElementById('set-account-number').value = accountNumber;
     const pu = document.getElementById('set-public-url'); if (pu) pu.value = publicAppUrl;
     updateSoundButtons(); applyUX();
-    const fs = document.getElementById('font-select'); if (fs) fs.value = currentFont;
     renderUsersTable();
     const nl = document.getElementById('notif-perm-label');
     if (nl && 'Notification' in window && Notification.permission === 'granted') nl.textContent = t('notif.browserOn');
@@ -6942,7 +6920,7 @@ function exportBackup() {
     version: 1,
     exportedAt: new Date().toISOString(),
     zones, bookings, recentCheckins, notifications, guests,
-    accountNumber, publicAppUrl, currentLang, currentTheme, currentFont
+    accountNumber, publicAppUrl, currentLang, currentTheme
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -6972,11 +6950,9 @@ function importBackup(event) {
         publicAppUrl = data.publicAppUrl || '';
         if (data.currentLang) currentLang = data.currentLang;
         if (data.currentTheme) currentTheme = data.currentTheme;
-        if (data.currentFont) currentFont = data.currentFont;
         saveData();
         localStorage.setItem('rest_lang', currentLang);
         localStorage.setItem('rest_theme', currentTheme);
-        localStorage.setItem('rest_font', currentFont);
         applyTheme(); applyFont(); applyI18n(); renderAll();
         toast(currentLang === 'ar' ? 'تم استيراد البيانات بنجاح' : 'Data imported successfully', 'success');
       });
