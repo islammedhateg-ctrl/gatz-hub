@@ -393,7 +393,8 @@ img { max-width: 100%; display: block; }
 .chart-bars .bar { width: 100%; max-width: 26px; border-radius: 6px 6px 2px 2px; transition: height .6s ease; }
 .chart-bars .bar.primary { background: var(--primary); }
 .chart-bars .bar.muted { background: var(--surface-3); }
-.chart-bars .bar-lbl { font-size: .62rem; color: var(--muted); font-weight: 600; }
+.chart-bars .bar-lbl { font-size: .6rem; color: var(--muted); font-weight: 700; text-align: center; white-space: nowrap; letter-spacing: -.01em; }
+.chart-bars .bar { max-width: 22px; }
 .chart-legend { display: flex; gap: 14px; font-size: .72rem; color: var(--muted); margin-top: 10px; }
 .chart-legend .item { display: flex; align-items: center; gap: 5px; }
 .chart-legend .sw { width: 8px; height: 8px; border-radius: 2px; }
@@ -624,7 +625,7 @@ body.big-targets .switch::after { width: 24px; height: 24px; }
   font-size: 1.05rem;
 }
 .stat-card .label { font-size: .78rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-.stat-card .value { font-size: 2.1rem; font-weight: 800; line-height: 1; letter-spacing: -.03em; color: var(--text); }
+.stat-card .value { font-size: 1.6rem !important; font-weight: 800; line-height: 1.05; letter-spacing: -.02em; color: var(--text); font-variant-numeric: tabular-nums; }
 /* حماية الأرقام الكبيرة من التقص: مرنة + قابلة للالتفاف */
 .stat-card, .stat-card .value, .today-num, .stat .v, .stat-card .trend {
   min-width: 0; font-variant-numeric: tabular-nums;
@@ -1129,6 +1130,14 @@ tbody tr.selected { background: var(--primary-soft); }
   #dashboard .card { font-size: .8rem !important; }
   #dashboard .hint, #dashboard .helper { font-size: .72rem !important; }
   /* نظرة اليوم: تصغير الأرقام والبطاقات */
+  /* تنسيق كروت إحصائيات التقويم */
+  #calendar .stat-card .value { font-size: 1.35rem !important; }
+  #calendar .stat-card .value[style*="1.4rem"] { font-size: 1.1rem !important; }
+  #calendar .stat-card .label { font-size: .68rem !important; line-height: 1.4 !important; }
+
+  /* أعمدة منظمة لصفوف نظرة اليوم */
+  .today-row { display: grid !important; grid-template-columns: 1.2fr 1fr .8fr .6fr 28px !important; gap: 8px !important; align-items: center !important; }
+  .today-row > span, .today-row > div { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #today-overview .today-num { font-size: clamp(.95rem, 4.2vw, 1.3rem) !important; }
   #today-overview > div:first-child { gap: 7px !important; }
   #today-overview > div:first-child > div { padding: 10px 8px !important; border-radius: 12px !important; }
@@ -1180,9 +1189,15 @@ tbody tr.selected { background: var(--primary-soft); }
   .cal-half-switch button:disabled { opacity: .35; }
   .cal-half-switch span { font-weight: 800; font-size: .85rem; min-width: 52px; text-align: center; }
   #calendar-grid { gap: 5px !important; }
-  .cal-day { min-height: 76px !important; padding: 6px 3px !important; border-radius: 10px !important; }
-  .cal-day-num { font-size: .95rem !important; }
-  .cal-day-dow { font-size: .6rem !important; }
+  .cal-day {
+    min-height: 92px !important; padding: 8px 2px !important; border-radius: 10px !important;
+    justify-content: space-between !important;
+  }
+  .cal-day-top { flex-direction: column; gap: 3px !important; align-items: center !important; }
+  .cal-day-num { font-size: 1rem !important; }
+  .cal-day-dow { font-size: .56rem !important; line-height: 1.3 !important; white-space: normal !important; text-align: center !important; }
+  .cal-day-stats { align-items: center !important; gap: 2px !important; }
+  .cal-day-bar { margin-top: auto !important; }
   .cal-day-num { font-size: .82rem !important; }
   .cal-day-dow { font-size: .42rem !important; letter-spacing: 0 !important; }
   .cal-day.today .cal-day-num { padding: 1px 4px !important; font-size: .72rem !important; }
@@ -1666,9 +1681,9 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           <div class="card">
             <!-- تقسيم أيام الشهر لكرتين على الموبايل مع تنقل سهل -->
             <div id="cal-half-switch" class="cal-half-switch" style="display:none;">
-              <button id="cal-half-prev" onclick="switchCalHalf(-1)" aria-label="Previous"><i class="fa-solid fa-chevron-right"></i></button>
+              <button id="cal-half-prev" onclick="switchCalHalf(-1)" aria-label="Previous"><i class="fa-solid fa-chevron-left"></i></button>
               <span id="cal-half-label">1 / 2</span>
-              <button id="cal-half-next" onclick="switchCalHalf(1)" aria-label="Next"><i class="fa-solid fa-chevron-left"></i></button>
+              <button id="cal-half-next" onclick="switchCalHalf(1)" aria-label="Next"><i class="fa-solid fa-chevron-right"></i></button>
             </div>
             <div id="calendar-grid" style="display:grid; grid-template-columns: repeat(7, 1fr); gap:6px;"></div>
           </div>
@@ -4511,7 +4526,22 @@ function renderCharts() {
       const y = H - padY - (v / max) * (H - padY * 2);
       return { x, y, v };
     });
-    const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+    // منحنى ناعم (Catmull-Rom → Bézier) بدل الخط المتكسر
+    const smoothPath = (points) => {
+      if (points.length < 2) return points.length ? `M ${points[0].x} ${points[0].y}` : '';
+      let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+      for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i - 1] || points[i];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[i + 2] || p2;
+        const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+        const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+        d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+      }
+      return d;
+    };
+    const linePath = smoothPath(pts);
     const areaPath = linePath + ` L ${pts[pts.length-1].x.toFixed(1)} ${H - padY} L ${pts[0].x.toFixed(1)} ${H - padY} Z`;
     lineEl.innerHTML = `
       <svg class="chart-line" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
@@ -4650,31 +4680,34 @@ function renderTodayOverview() {
     <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:12px;">
       <div style="background:var(--surface-2); border-radius:var(--radius); padding:14px;">
         <div style="font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:700;">${t('today.bookings')}</div>
-        <div class="today-num" style="font-size:2rem; font-weight:800; color:var(--primary); line-height:1.2;">${todayBookings.length}</div>
+        <div class="today-num" style="font-size:1.5rem; font-weight:800; color:var(--primary); line-height:1.2; font-variant-numeric:tabular-nums;">${todayBookings.length}</div>
       </div>
       <div style="background:var(--blue-soft); border-radius:var(--radius); padding:14px;">
         <div style="font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:700;">${t('today.guests')}</div>
-        <div class="today-num" style="font-size:2rem; font-weight:800; color:var(--info); line-height:1.2;">${checked} / ${expected}</div>
+        <div class="today-num" style="font-size:1.5rem; font-weight:800; color:var(--info); line-height:1.2; font-variant-numeric:tabular-nums;">${checked} / ${expected}</div>
       </div>
       <div style="background:var(--pink-soft); border-radius:var(--radius); padding:14px;">
         <div style="font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:700;">${t('today.pending')}</div>
-        <div class="today-num" style="font-size:2rem; font-weight:800; color:${pending>0?'var(--primary)':'var(--success)'}; line-height:1.2;">${pending}</div>
+        <div class="today-num" style="font-size:1.5rem; font-weight:800; color:${pending>0?'var(--primary)':'var(--success)'}; line-height:1.2; font-variant-numeric:tabular-nums;">${pending}</div>
       </div>
     </div>
   `;
   if (todayBookings.length === 0) {
     html += `<div style="color:var(--muted); font-size:.85rem; padding:8px 0;">${t('today.empty')}</div>`;
   } else {
-    html += `<div style="max-height:220px; overflow-y:auto;">`;
+    html += `<div style="max-height:220px; overflow-y:auto;">
+      <div class="today-row" style="padding:6px 0; border-bottom:1px solid var(--border); font-size:.68rem; color:var(--muted); font-weight:800; text-transform:uppercase;">
+        <span>${t('col.customer')}</span><span>${t('col.zone')}</span><span>${t('col.time')||'الوقت'}</span><span>${t('col.attendance')||'الحضور'}</span><span></span>
+      </div>`;
     todayBookings.forEach(b => {
       const zone = zones.find(z => z.id === b.zoneId) || { name: b.zoneId, nameEn: b.zoneId };
       html += `
-        <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:.85rem;">
-          <span class="badge badge-zone">${escapeHtml(zoneName(zone))}</span>
-          <span style="font-weight:700;">${escapeHtml(b.name)}</span>
+        <div class="today-row" style="padding:8px 0; border-bottom:1px solid var(--border); font-size:.82rem;">
+          <span style="font-weight:700;" title="${escapeHtml(b.name)}">${escapeHtml(b.name)}</span>
+          <span style="color:var(--muted);" title="${escapeHtml(zoneName(zone))}">${escapeHtml(zoneName(zone))}</span>
           <span style="color:var(--muted);">${b.start}–${b.end}</span>
-          <span style="margin-inline-start:auto; color:var(--success); font-weight:700;">${b.checkedIn}/${b.guests}</span>
-          <button class="btn btn-ghost btn-sm" onclick="openBookingDetails('${jsSafe(b.id)}')"><i class="fa-solid fa-eye"></i></button>
+          <span style="color:var(--success); font-weight:700;">${b.checkedIn}/${b.guests}</span>
+          <button class="btn btn-ghost btn-sm" onclick="openBookingDetails('${jsSafe(b.id)}')" title="${b.id}"><i class="fa-solid fa-eye"></i></button>
         </div>
       `;
     });
