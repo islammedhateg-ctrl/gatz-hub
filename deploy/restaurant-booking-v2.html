@@ -4337,6 +4337,13 @@ window.onload = async () => {
       });
       // تحقق من التحديثات عند كل تحميل (Network-first يتولى الباقي)
       reg.update().catch(() => {});
+      // عند تفعيل نسخة جديدة، أعد التحميل مرة واحدة فقط عشان كل الأجهزة تشوف التحديث
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloaded) return;
+        reloaded = true;
+        window.location.reload();
+      });
     }).catch(() => {});
   }
 };
