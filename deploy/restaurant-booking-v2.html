@@ -1087,7 +1087,7 @@ tbody tr.selected { background: var(--primary-soft); }
   .topbar-actions { gap: 4px; margin-inline-start: auto; }
   .topbar-actions .icon-btn { width: 40px; height: 40px; font-size: 1rem; }
   /* قائمة الإشعارات على الموبايل: عرض مناسب + طبقة أعلى */
-  #notif-dropdown { width: min(92vw, 360px) !important; max-height: 60vh !important; z-index: 300 !important; }
+  #notif-dropdown { top: 60px !important; inset-inline-end: 8px !important; width: min(94vw, 380px) !important; max-height: 70vh !important; z-index: 1200 !important; }
   .mobile-menu-btn { width: 44px; height: 44px; }
 
   /* المحتوى */
@@ -1365,7 +1365,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
             <span class="dot" id="notif-dot" style="display:none;"></span>
             <span id="notif-count" style="position:absolute; top:4px; inset-inline-end:4px; background:var(--danger); color:#fff; font-size:.65rem; font-weight:800; min-width:16px; height:16px; border-radius:8px; display:none; align-items:center; justify-content:center; padding:0 4px;">0</span>
           </button>
-          <div id="notif-dropdown" style="display:none; position:absolute; top:48px; inset-inline-end:0; width:340px; max-height:420px; overflow-y:auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); z-index:100;">
+          <div id="notif-dropdown" style="display:none; position:fixed; top:64px; inset-inline-end:16px; width:min(92vw,380px); max-height:70vh; overflow-y:auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); z-index:1200;">
             <div style="padding:12px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
               <strong style="font-size:.9rem;" data-i18n="notif.title">الإشعارات</strong>
               <div style="display:flex; gap:6px;">
