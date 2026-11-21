@@ -329,7 +329,7 @@ img { max-width: 100%; display: block; }
 .cal-day-heat-high { background: var(--danger-soft); }
 .cal-day-top { display: flex; align-items: center; justify-content: space-between; }
 .cal-day-num { font-weight: 800; font-size: 1.05rem; color: var(--text); line-height: 1; }
-.cal-day-dow { font-size: .6rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+.cal-day-dow { font-size: .58rem; color: var(--muted); font-weight: 700; letter-spacing: 0; white-space: nowrap; }
 .cal-day-stats { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
 .cal-stat { display: flex; align-items: center; gap: 5px; font-size: .72rem; color: var(--text-2); }
 .cal-stat i { width: 13px; text-align: center; color: var(--primary); font-size: .72rem; }
@@ -6081,11 +6081,11 @@ function renderCalendar() {
   const firstDay = new Date(y, m, 1);
   const lastDay = new Date(y, m + 1, 0);
   const startWeekday = firstDay.getDay();
-  const dayNames = rtl
-    ? ['أحد','إثن','ثلا','أرب','خمي','جمع','سبت']
-    : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dayNamesFull = rtl
+    ? ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']
+    : ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   let html = '';
-  dayNames.forEach(d => { html += `<div style="text-align:center; font-size:.72rem; font-weight:700; color:var(--muted); padding:4px;">${d}</div>`; });
+  // تمت إزالة اختصارات الأيام من فوق الكروت حسب الطلب
   for (let i = 0; i < startWeekday; i++) html += `<div></div>`;
   const todayStr = new Date().toISOString().split('T')[0];
   const zoneCapacity = zones.filter(z=>z.active).reduce((s,z)=>s+z.capacity,0) || 1;
@@ -6125,7 +6125,7 @@ function renderCalendar() {
         <span class="cal-day-num">${d}</span>
         ${isToday
           ? `<span style="font-size:.55rem; background:var(--primary); color:#fff; padding:1px 6px; border-radius:999px; font-weight:700;">${rtl?'اليوم':'today'}</span>`
-          : `<span class="cal-day-dow">${dayNames[dow]}</span>`
+          : `<span class="cal-day-dow" title="${dayNamesFull[dow]}">${rtl ? dayNamesFull[dow] : dayNamesFull[dow]}</span>`
         }
       </div>
       ${statsHtml}
