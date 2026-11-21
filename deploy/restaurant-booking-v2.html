@@ -1243,7 +1243,9 @@ tbody tr.selected { background: var(--primary-soft); }
     font-size: 0.95rem !important;
     font-weight: 600 !important;
     padding: 0 12px !important;
-    height: 44px !important;
+    height: 46px !important;
+    text-align: start !important;
+    width: 100% !important;
   }
   #quick-door-select option {
     background: var(--surface) !important;
@@ -4139,6 +4141,8 @@ function deleteUser(id) {
    TABS / NAV
    ============================================================ */
 function showTab(tabId, btn) {
+  // حفظ آخر شاشة للعودة إليها بعد الـ Reload
+  try { localStorage.setItem('rest_last_tab', tabId); } catch (e) {}
   // حماية: منع فتح تبويب غير مسموح للدور الحالي
   const PERMISSIONS = {
     admin: ['dashboard','new-booking','bookings','calendar','guests','finance','zones','door','settings'],
@@ -4325,6 +4329,17 @@ window.onload = async () => {
     setRole('door');
     document.getElementById('auth-modal').classList.add('open');
     switchAuthTab('login');
+  } else if (currentUser && !isInvite) {
+    // العودة لآخر شاشة كان الموظف عليها قبل الـ Reload (الأدمين يبدأ بالداشبورد)
+    const savedTab = localStorage.getItem('rest_last_tab');
+    const allowed = {
+      admin: ['dashboard','new-booking','bookings','calendar','guests','finance','zones','door','settings'],
+      staff: ['dashboard','new-booking','bookings','calendar','guests','door'],
+      door: ['door']
+    }[currentRole] || ['door'];
+    const target = savedTab && allowed.includes(savedTab) ? savedTab : 'dashboard';
+    const navBtn = document.querySelector(`.nav-item[data-tab="${target}"]`) || document.querySelector(`[data-tab="${target}"]`);
+    if (navBtn) showTab(target, navBtn);
   }
   // Register service worker (PWA) - only on http/https (not file://)
   if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
@@ -6663,14 +6678,19 @@ function handleScannedCode(code) {
     const gid = raw.slice(4).toUpperCase();
     const g = guests.find(x => x.id === gid);
     if (g) {
-      if (!g.checkedIn) {
-        g.checkedIn = true;
-        g.entryTime = new Date().toISOString();
-        saveData(); renderGuests();
-        if (CLOUD.enabled && CLOUD.client) {
-          CLOUD.client.from('guests').update({ checked_in: true, entry_time: g.entryTime })
-            .eq('id', g.id).then(() => {}).catch(e => cloudWarn(e));
-        }
+      // منع استخدام QR الضيف مرتين — بعد أول تسجيل يبقى «منتهي الصلاحية»
+      if (g.checkedIn) {
+        if (doorBeepEnabled) playBeep(330, 220);
+        toast((currentLang === 'ar' ? 'هذه التذكرة منتهية الصلاحية — الضيف مسجّل بالفعل: ' : 'This ticket has expired — guest already checked in: ') + g.name, 'warning');
+        document.getElementById('scan-result-card').style.display = 'none';
+        return;
+      }
+      g.checkedIn = true;
+      g.entryTime = new Date().toISOString();
+      saveData(); renderGuests();
+      if (CLOUD.enabled && CLOUD.client) {
+        CLOUD.client.from('guests').update({ checked_in: true, entry_time: g.entryTime })
+          .eq('id', g.id).then(() => {}).catch(e => cloudWarn(e));
       }
       // زيادة عدّاد المناسبة إن وُجدت
       const bk = bookings.find(b => b.id === g.eventId);
@@ -6732,16 +6752,18 @@ function handleScannedCode(code) {
 function updateQuickDoorSelect() {
   const select = document.getElementById('quick-door-select');
   if (!select) return;
+  // حجوزات اليوم فقط في القائمة السريعة (زي ما طُلب)
+  const todayBookings = bookings.filter(b => b.date === todayStr() && !b.cancelled);
   const noData = document.getElementById('door-no-data');
   if (noData) {
-    noData.style.display = bookings.length === 0 ? 'block' : 'none';
+    noData.style.display = todayBookings.length === 0 ? 'block' : 'none';
     const txt = document.getElementById('door-no-data-text');
     if (txt) txt.textContent = currentLang === 'ar'
-      ? 'لا توجد حجوزات — تأكد من تسجيل الدخول أو أنشئ حجزاً جديداً'
-      : 'No bookings — make sure you are signed in or create a new booking';
+      ? 'لا توجد حجوزات اليوم — أنشئ حجزاً جديداً أو عدّل التاريخ'
+      : 'No bookings for today — create a new booking or change the date';
   }
   select.innerHTML = `<option value="">${t('door.quickSelect')}</option>`;
-  bookings.forEach(b => {
+  todayBookings.forEach(b => {
     select.innerHTML += `<option value="${jsSafe(b.id)}">${jsSafe(b.id)} - ${escapeHtml(b.name)} (${b.checkedIn}/${b.guests})</option>`;
   });
 }
@@ -6760,6 +6782,11 @@ function lookupBookingForDoor() {
   }
   if (isBookingExpired(b)) {
     toast((currentLang === 'ar' ? 'هذا الحجز منتهي — تاريخه ' : 'This booking has expired — date: ') + b.date, 'warning');
+    card.style.display = 'none';
+    return;
+  }
+  if (b.date !== todayStr()) {
+    toast((currentLang === 'ar' ? 'الحجز ليس لليوم — تاريخه ' : 'Booking is not for today — date: ') + b.date, 'warning');
     card.style.display = 'none';
     return;
   }
