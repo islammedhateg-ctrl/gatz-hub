@@ -1190,11 +1190,14 @@ tbody tr.selected { background: var(--primary-soft); }
   .sound-row .vol-val { margin-inline-start: auto; }
   .sound-row .sound-actions { margin-inline-start: auto; }
 
-  /* بوابة الدخول */
+  /* بوابة الدخول — موبايل: كارت أقصر + مربع كاميرا أصغر */
   .scan-input-row { gap: 8px !important; }
-  .scan-input { min-height: 54px; font-size: 17px !important; }
-  #btn-start-scan, #btn-stop-scan, #qr-file-input + button { min-height: 54px !important; }
-  #qr-reader video { max-height: 58vh; object-fit: cover; }
+  .scan-input { min-height: 50px; font-size: 17px !important; }
+  #btn-start-scan, #btn-stop-scan { min-height: 50px !important; }
+  #qr-reader video { max-height: 48vh !important; object-fit: cover; }
+  #door .scanner-wrap { padding: 16px 14px !important; }
+  #door .scanner-wrap h2 { font-size: 1.15rem !important; margin-bottom: 2px !important; }
+  #door .scanner-wrap p { margin-bottom: 12px !important; font-size: .82rem !important; }
 
   /* شريط التنقل السفلي */
   .bottom-nav {
@@ -2006,9 +2009,9 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
         </div>
         <div class="scanner-wrap">
           <h2><i class="fa-solid fa-qrcode"></i> <span data-i18n="door.scanTitle">مسح كود الدخول</span></h2>
-          <p data-i18n="door.scanHint">أدخل رقم الحجز أو امسح QR</p>
+          <p data-i18n="door.scanHint">أدخل رقم الحجز (BK-) أو امسح QR</p>
           <div class="scan-input-row">
-            <input class="scan-input" type="text" id="scan-input" data-i18n-placeholder="door.placeholder" placeholder="BK-1001">
+            <input class="scan-input" type="text" id="scan-input" data-i18n-placeholder="door.placeholder" placeholder="BK-1001" value="BK-" oninput="enforceBkPrefix(this)" onfocus="enforceBkPrefix(this)">
             <button class="btn btn-primary" onclick="lookupBookingForDoor()"><i class="fa-solid fa-magnifying-glass"></i></button>
           </div>
           <div style="margin-top:10px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
@@ -2018,18 +2021,12 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
             <button class="btn btn-outline" id="btn-stop-scan" onclick="stopQrScan()" style="display:none;">
               <i class="fa-solid fa-stop"></i> <span data-i18n="door.stopScan">إيقاف</span>
             </button>
-            <button class="btn btn-outline" onclick="document.getElementById('qr-file-input').click()">
-              <i class="fa-solid fa-image"></i> <span data-i18n="door.scanFromFile">مسح من صورة</span>
-            </button>
-            <input type="file" id="qr-file-input" accept="image/*" style="display:none;" onchange="scanQrFromFile(this)">
+            <!-- تم إزالة «مسح من صورة» حسب الطلب — البحث برقم BK فقط -->
           </div>
           <div id="qr-reader" style="margin-top:12px; border-radius:var(--radius); overflow:hidden; display:none;"></div>
           <div id="scan-status" style="margin-top:8px; font-size:.8rem; color:var(--muted); text-align:center;"></div>
           <div id="door-no-data" style="display:none; margin-top:10px; padding:10px 12px; background:var(--warning-soft); color:var(--warning); border-radius:var(--radius-sm); font-size:.78rem; text-align:center; line-height:1.7;">
-            <i class="fa-solid fa-triangle-exclamation"></i> <span id="door-no-data-text">لا توجد حجوزات على هذا الجهاز</span>
-            <button class="btn btn-sm btn-outline" onclick="document.getElementById('restore-file').click()" style="margin-inline-start:6px;">
-              <i class="fa-solid fa-file-import"></i> <span data-i18n="settings.backupImport">استيراد البيانات</span>
-            </button>
+            <i class="fa-solid fa-triangle-exclamation"></i> <span id="door-no-data-text">لا توجد حجوزات</span>
           </div>
           <div style="margin-top:12px;">
             <select class="scan-input" id="quick-door-select" onchange="document.getElementById('scan-input').value=this.value; lookupBookingForDoor();" style="width:100%; max-width:340px;">
@@ -6467,10 +6464,19 @@ async function startQrScan() {
   const startBtn = document.getElementById('btn-start-scan');
   const stopBtn = document.getElementById('btn-stop-scan');
 
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    status.textContent = currentLang === 'ar' ? 'المتصفح لا يدعم الكاميرا' : 'Camera not supported';
+  // الكمبيوتر: تنبيه واضح باللون الأحمر — المسح بالكاميرا مخصص للموبايل فقط
+  const isDesktop = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) && window.innerWidth > 900;
+  if (isDesktop) {
+    status.style.color = 'var(--danger)';
+    status.style.fontWeight = '800';
+    status.innerHTML = currentLang === 'ar'
+      ? '⚠️ مسح QR بالكاميرا غير متاح على الكمبيوتر — استخدم الموبايل، أو اكتب رقم الحجز (BK-) يدوياً.'
+      : '⚠️ Camera QR scanning is not available on desktop — use your mobile, or type the booking ID (BK-) manually.';
+    toast(currentLang === 'ar' ? 'الكاميرا للموبايل فقط — اكتب رقم BK-' : 'Camera is mobile-only — type the BK- ID', 'warning');
     return;
   }
+  status.style.color = '';
+  status.style.fontWeight = '';
   status.textContent = currentLang === 'ar' ? 'جاري تشغيل الكاميرا...' : 'Starting camera...';
 
   // محاولة الكاميرا الخلفية ثم أي كاميرا
@@ -6496,7 +6502,7 @@ async function startQrScan() {
   video.style.cssText = 'width:100%;max-width:460px;display:block;margin:0 auto;background:#000;border-radius:10px;';
   readerDiv.appendChild(video);
   const box = document.createElement('div');
-  box.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:180px;height:180px;border:2px dashed #56d8a0;border-radius:14px;pointer-events:none;';
+  box.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(52%,200px);aspect-ratio:1;border:3px solid #56d8a0;border-radius:16px;pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,.35);';
   readerDiv.style.position = 'relative';
   readerDiv.appendChild(box);
   video.srcObject = qrStream;
@@ -6558,7 +6564,7 @@ async function startQrScan() {
       }
     }
     status.textContent = (currentLang === 'ar' ? 'جارٍ البحث... محاولة ' : 'Searching... attempt ') + qrFrames;
-    qrLoop = setTimeout(tick, qrDetector ? 160 : 420);
+    qrLoop = setTimeout(tick, qrDetector ? 90 : 200);
   };
   tick();
 }
@@ -6700,7 +6706,7 @@ function handleScannedCode(code) {
   } else {
     if (doorBeepEnabled) playBeep(330, 220);
     toast(bookings.length === 0
-      ? (currentLang === 'ar' ? 'لا توجد حجوزات على هذا الجهاز — انقل البيانات من الإعدادات أولاً' : 'No bookings on this device — import data from Settings first')
+      ? (currentLang === 'ar' ? 'لا توجد حجوزات — تأكد من تسجيل الدخول أو أنشئ حجزاً جديداً' : 'No bookings — make sure you are signed in or create a new booking')
       : (currentLang === 'ar' ? 'كود غير مسجل: ' : 'Unknown code: ') + raw.slice(0, 45),
       'warning');
   }
@@ -6717,8 +6723,8 @@ function updateQuickDoorSelect() {
     noData.style.display = bookings.length === 0 ? 'block' : 'none';
     const txt = document.getElementById('door-no-data-text');
     if (txt) txt.textContent = currentLang === 'ar'
-      ? 'لا توجد حجوزات على هذا الجهاز — استورد نسخة من الكمبيوتر لتفعيل المسح'
-      : 'No bookings on this device — import a backup from the PC to enable scanning';
+      ? 'لا توجد حجوزات — تأكد من تسجيل الدخول أو أنشئ حجزاً جديداً'
+      : 'No bookings — make sure you are signed in or create a new booking';
   }
   select.innerHTML = `<option value="">${t('door.quickSelect')}</option>`;
   bookings.forEach(b => {
@@ -6732,7 +6738,7 @@ function lookupBookingForDoor() {
   const card = document.getElementById('scan-result-card');
   if (!b) {
     toast(bookings.length === 0
-      ? (currentLang === 'ar' ? 'لا توجد حجوزات على هذا الجهاز — انقل البيانات من الإعدادات أو أنشئ حجزاً هنا' : 'No bookings on this device — import data from Settings or create a booking here')
+      ? (currentLang === 'ar' ? 'لا توجد حجوزات — تأكد من تسجيل الدخول أو أنشئ حجزاً جديداً' : 'No bookings — make sure you are signed in or create a new booking')
       : (currentLang === 'ar' ? 'لم يتم العثور على الحجز: ' : 'Booking not found: ') + code,
       'warning');
     card.style.display = 'none';
@@ -7174,6 +7180,10 @@ async function cloudLoad() {
   finally { CLOUD.loading = false; }
 }
 
+// إجبار حقل البحث على صيغة BK- فقط (ثابتة — لا تُمسح ولا تُغيّر)
+function enforceBkPrefix(el) {
+  if (!el.value.toUpperCase().startsWith('BK-')) el.value = 'BK-' + el.value.replace(/^BK-/i, '');
+}
 // منع إشعار مكرر على الجهاز اللي عمل التغيير بنفسه
 function cloudNotifyLocal(type, title, body, key) {
   const now = Date.now();
