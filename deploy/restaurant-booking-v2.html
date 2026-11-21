@@ -1087,7 +1087,7 @@ tbody tr.selected { background: var(--primary-soft); }
   .topbar-actions { gap: 4px; margin-inline-start: auto; }
   .topbar-actions .icon-btn { width: 40px; height: 40px; font-size: 1rem; }
   /* قائمة الإشعارات على الموبايل: عرض مناسب + طبقة أعلى */
-  #notif-dropdown { top: 60px !important; inset-inline-end: 8px !important; width: min(94vw, 380px) !important; max-height: 70vh !important; z-index: 1200 !important; }
+  #notif-dropdown { width: min(94vw, 380px) !important; max-height: 70vh !important; z-index: 1200 !important; }
   .mobile-menu-btn { width: 44px; height: 44px; }
 
   /* المحتوى */
@@ -1365,7 +1365,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
             <span class="dot" id="notif-dot" style="display:none;"></span>
             <span id="notif-count" style="position:absolute; top:4px; inset-inline-end:4px; background:var(--danger); color:#fff; font-size:.65rem; font-weight:800; min-width:16px; height:16px; border-radius:8px; display:none; align-items:center; justify-content:center; padding:0 4px;">0</span>
           </button>
-          <div id="notif-dropdown" style="display:none; position:fixed; top:64px; inset-inline-end:16px; width:min(92vw,380px); max-height:70vh; overflow-y:auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); z-index:1200;">
+          <div id="notif-dropdown" style="display:none; position:fixed; width:min(92vw,380px); max-height:70vh; overflow-y:auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); z-index:1200;">
             <div style="padding:12px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
               <strong style="font-size:.9rem;" data-i18n="notif.title">الإشعارات</strong>
               <div style="display:flex; gap:6px;">
@@ -3516,6 +3516,8 @@ function setLang(lang) {
   currentLang = lang;
   localStorage.setItem('rest_lang', lang);
   renderAll();
+  const dd = document.getElementById('notif-dropdown');
+  if (dd && dd.style.display === 'block' && typeof positionNotifDropdown === 'function') positionNotifDropdown();
   const activeNav = document.querySelector('.nav-item.active');
   const activeTab = activeNav ? activeNav.getAttribute('data-tab') : 'dashboard';
   if (activeTab === 'bookings') renderBookings();
@@ -6303,6 +6305,29 @@ function renderNotifications() {
   }).join('');
 }
 
+function positionNotifDropdown() {
+  const dd = document.getElementById('notif-dropdown');
+  const btn = document.getElementById('notif-btn');
+  if (!dd || !btn) return;
+  // نقل القائمة لـ body عشان الـ fixed يُحسب بالنسبة للشاشة (مش الـ topbar اللي فيه backdrop-filter)
+  if (dd.parentElement !== document.body) document.body.appendChild(dd);
+  dd.style.right = 'auto';
+  dd.style.left = 'auto';
+  const r = btn.getBoundingClientRect();
+  const w = dd.offsetWidth || Math.min(window.innerWidth * 0.92, 380);
+  const gap = 8;
+  const rtl = document.documentElement.dir === 'rtl';
+  // القائمة دايماً تحت الزر: في RTL الحافة اليمنى للقائمة = الحافة اليمنى للزر
+  // وفي LTR الحافة اليسرى للقائمة = الحافة اليسرى للزر
+  let left = rtl ? (r.right - w) : r.left;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  const right = window.innerWidth - left - w;
+  let top = r.bottom + gap;
+  if (top + dd.offsetHeight > window.innerHeight - 8) top = Math.max(8, window.innerHeight - dd.offsetHeight - 8);
+  dd.style.left = left + 'px';
+  dd.style.right = 'auto';
+  dd.style.top = top + 'px';
+}
 function toggleNotifications() {
   const dd = document.getElementById('notif-dropdown');
   if (!dd) return;
@@ -6310,9 +6335,14 @@ function toggleNotifications() {
   dd.style.display = open ? 'block' : 'none';
   if (open) {
     renderNotifications();
+    positionNotifDropdown();
     // لا نُعلّم كمقروء تلقائياً — الشارة تفضل واضحة لحد ما المستخدم يختار
   }
 }
+window.addEventListener('resize', () => {
+  const dd = document.getElementById('notif-dropdown');
+  if (dd && dd.style.display === 'block') positionNotifDropdown();
+});
 
 function markRead(id) {
   const n = notifications.find(x => x.id === id);
