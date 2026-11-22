@@ -5665,14 +5665,19 @@ function renderGuests() {
   const search = (document.getElementById('guests-search')?.value || '').toLowerCase().trim();
   const filterEvent = document.getElementById('guests-event-filter')?.value || '';
   const filterStatus = document.getElementById('guests-status-filter')?.value || '';
-  // populate event filter من أنواع الحجوزات
+  // populate event filter من نفس قائمة «نوع الحجز» في نموذج حجز جديد
   const ef = document.getElementById('guests-event-filter');
   if (ef && ef.options.length <= 1) {
-    const types = [...new Set(bookings.map(b => b.type).filter(Boolean))];
-    types.forEach(tp => {
+    const typeSource = document.getElementById('b-type');
+    const sourceOptions = typeSource
+      ? [...typeSource.options]
+      : [...new Set(bookings.map(b => b.type).filter(Boolean))].map(tp => ({ value: tp, text: tp, key: null }));
+    sourceOptions.forEach(src => {
+      if (!src.value) return;
       const o = document.createElement('option');
-      o.value = tp;
-      o.textContent = tp;
+      o.value = src.value;
+      const key = src.getAttribute && src.getAttribute('data-i18n');
+      o.textContent = key ? t(key) : (src.text || src.value);
       ef.appendChild(o);
     });
   }
