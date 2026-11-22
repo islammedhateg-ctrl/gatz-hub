@@ -382,14 +382,14 @@ img { max-width: 100%; display: block; }
 .pie-legend .sw { width:10px; height:10px; border-radius:3px; flex:0 0 10px; }
 .pie-legend .val { margin-inline-start:auto; font-weight:800; color:var(--text); }
 
-.chart-line { width: 100%; height: 120px; }
+.chart-line { width: 100%; height: 200px; }
 .chart-line .grid-line { stroke: var(--surface-3); stroke-width: 1; stroke-dasharray: 3 4; }
 .chart-line .area { fill: url(#lineGradient); opacity: .3; }
 .chart-line .line { fill: none; stroke: var(--primary); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .chart-line .dot { fill: var(--primary); stroke: var(--surface); stroke-width: 3; }
 .chart-line .dot-label { font-size: 10.5px; font-weight: 500; fill: var(--text-2); font-family: var(--font); letter-spacing: .01em; }
 .chart-line .chart-val { font-size: 10px; font-weight: 800; fill: var(--brand); font-family: var(--font); }
-.chart-bars { width: 100%; height: 130px; display: flex; align-items: flex-end; gap: 6px; }
+.chart-bars { width: 100%; height: 200px; display: flex; align-items: flex-end; gap: 6px; }
 .chart-bars .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
 .chart-bars .bar { width: 100%; max-width: 26px; border-radius: 6px 6px 2px 2px; transition: height .6s ease; }
 .chart-bars .bar.primary { background: var(--primary); }
@@ -4530,7 +4530,7 @@ function renderCharts() {
     const labels = days.map(d => {
       return currentLang === 'ar' ? arDaysShort[d.getDay()] : enDaysShort[d.getDay()];
     });
-    const W = 320, H = 155, padX = 18, padY = 26; // ارتفاع 155 + مسافة متوسطة بين المنحنى والأيام
+    const W = lineEl.clientWidth || 320, H = 200, padX = 24, padY = 36; // ارتفاع 200 + مسافة 24 وحدة بين المنحنى والأيام + عرض مطابق للكارت (1:1)
     const rawMax = Math.max(1, ...values);
     const max = rawMax <= 4 ? rawMax + 1 : rawMax; // مقياس ذكي لما القيم صغيرة
     const pts = values.map((v, i) => {
