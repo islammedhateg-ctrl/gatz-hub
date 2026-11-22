@@ -1128,8 +1128,9 @@ tbody tr.selected { background: var(--primary-soft); }
 
   /* لوحة التحكم: البطاقتان تحت بعض + خطوط أصغر */
   #dash-charts { grid-template-columns: 1fr !important; gap: 12px !important; }
-  /* اتجاه الحجوزات: أسماء الأيام كاملة بخط أصغر لتتسع على الموبايل */
-  #line-chart .dot-label { font-size: 8px !important; }
+  /* الموبايل: ارتفاع 150 للرسمين + خط أيام 9px متطابق (العربية والإنجليزية) */
+  .chart-line, .chart-bars { height: 150px !important; }
+  #line-chart .dot-label, .chart-bars .bar-lbl { font-size: 9px !important; }
   #line-chart { overflow: visible; }
   #dashboard .page-header h2 { font-size: 1.1rem !important; }
   #dashboard .page-header p { font-size: .74rem !important; }
@@ -4530,7 +4531,7 @@ function renderCharts() {
     const labels = days.map(d => {
       return currentLang === 'ar' ? arDaysShort[d.getDay()] : enDaysShort[d.getDay()];
     });
-    const W = lineEl.clientWidth || 320, H = 200, padX = 24, padY = 36; // ارتفاع 200 + مسافة 24 وحدة بين المنحنى والأيام + عرض مطابق للكارت (1:1)
+    const W = lineEl.clientWidth || 320, H = window.matchMedia('(max-width: 768px)').matches ? 150 : 200, padX = 24, padY = 36; // ارتفاع 150 موبايل / 200 كمبيوتر + مسافة 24 + عرض مطابق للكارت (1:1)
     const rawMax = Math.max(1, ...values);
     const max = rawMax <= 4 ? rawMax + 1 : rawMax; // مقياس ذكي لما القيم صغيرة
     const pts = values.map((v, i) => {
