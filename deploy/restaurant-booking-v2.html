@@ -5682,14 +5682,12 @@ function renderGuests() {
     });
   }
   let list = [...guests];
-  if (search) list = list.filter(g => {
-    const bk = bookings.find(x => x.id === g.eventId);
-    return (g.name||'').toLowerCase().includes(search)
-      || (g.phone||'').includes(search)
-      || (g.id||'').toLowerCase().includes(search)
-      || (g.eventId||'').toLowerCase().includes(search)
-      || (bk && (bk.name||'').toLowerCase().includes(search));
-  });
+  // البحث خاص بالضيوف: اسم الضيف + هاتف الضيف + كود الحجز المرتبط به
+  if (search) list = list.filter(g =>
+    (g.name||'').toLowerCase().includes(search)
+    || (g.phone||'').includes(search)
+    || (g.eventId||'').toLowerCase().includes(search)
+  );
   if (filterEvent) list = list.filter(g => {
     const bk = bookings.find(x => x.id === g.eventId);
     return bk && bk.type === filterEvent;
