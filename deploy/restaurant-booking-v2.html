@@ -1740,16 +1740,6 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           <h2 data-i18n="guests.title">قاعدة بيانات الضيوف</h2>
           <p data-i18n="guests.subtitle">الضيوف المسجلون عبر روابط الدعوة</p>
           <div class="actions">
-            <div class="input-icon-wrap" style="width:260px; max-width:100%;">
-              <i class="fa-solid fa-magnifying-glass lead-icon"></i>
-              <input class="input" type="search" id="guests-search" data-i18n-placeholder="guests.search" placeholder="بحث بالاسم/الهاتف..." oninput="renderGuests()">
-            </div>
-            <div class="input-icon-wrap" style="width:220px;">
-              <i class="fa-solid fa-calendar-days lead-icon"></i>
-              <select class="input" id="guests-event-filter" onchange="renderGuests()">
-                <option value="" data-i18n="guests.allEvents">كل المناسبات</option>
-              </select>
-            </div>
             <button class="btn btn-outline btn-sm" onclick="exportGuestsCSV()"><i class="fa-solid fa-file-csv"></i> <span data-i18n="action.export">تصدير</span></button>
           </div>
         </div>
@@ -1789,6 +1779,26 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           </div>
         </div>
         <div class="card table-card">
+          <div class="guests-toolbar" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+            <div class="input-icon-wrap" style="width:260px; max-width:100%;">
+              <i class="fa-solid fa-magnifying-glass lead-icon"></i>
+              <input class="input" type="search" id="guests-search" data-i18n-placeholder="guests.search" placeholder="بحث بالاسم/الهاتف..." oninput="renderGuests()">
+            </div>
+            <div class="input-icon-wrap" style="width:220px;">
+              <i class="fa-solid fa-calendar-days lead-icon"></i>
+              <select class="input" id="guests-event-filter" onchange="renderGuests()">
+                <option value="" data-i18n="guests.allEvents">كل المناسبات</option>
+              </select>
+            </div>
+            <div class="input-icon-wrap" style="width:180px;">
+              <i class="fa-solid fa-filter lead-icon"></i>
+              <select class="input" id="guests-status-filter" onchange="renderGuests()">
+                <option value="" data-i18n="guests.allStatuses">كل الحالات</option>
+                <option value="checked" data-i18n="guests.checked">تم الدخول</option>
+                <option value="pending" data-i18n="guests.pending">لم يحضروا</option>
+              </select>
+            </div>
+          </div>
           <div id="guests-table-wrap"></div>
         </div>
       </section>
@@ -3135,6 +3145,7 @@ const I18N = {
     'guests.subtitle': 'الضيوف المسجلون عبر روابط الدعوة',
     'guests.search': 'بحث بالاسم/الهاتف...',
     'guests.allEvents': 'كل المناسبات',
+    'guests.allStatuses': 'كل الحالات',
     'guests.total': 'إجمالي الضيوف',
     'guests.checked': 'تم الدخول',
     'guests.pending': 'لم يحضروا',
@@ -3512,6 +3523,7 @@ const I18N = {
     'guests.subtitle': 'Guests registered via invite links',
     'guests.search': 'Search name/phone...',
     'guests.allEvents': 'All events',
+    'guests.allStatuses': 'All statuses',
     'guests.total': 'Total Guests',
     'guests.checked': 'Checked In',
     'guests.pending': 'Not Arrived',
@@ -5652,6 +5664,7 @@ function renderGuests() {
   if (!wrap) return;
   const search = (document.getElementById('guests-search')?.value || '').toLowerCase().trim();
   const filterEvent = document.getElementById('guests-event-filter')?.value || '';
+  const filterStatus = document.getElementById('guests-status-filter')?.value || '';
   // populate event filter
   const ef = document.getElementById('guests-event-filter');
   if (ef && ef.options.length <= 1) {
@@ -5667,6 +5680,8 @@ function renderGuests() {
   let list = [...guests];
   if (search) list = list.filter(g => (g.name||'').toLowerCase().includes(search) || (g.phone||'').includes(search) || (g.id||'').toLowerCase().includes(search));
   if (filterEvent) list = list.filter(g => g.eventId === filterEvent);
+  if (filterStatus === 'checked') list = list.filter(g => g.checkedIn);
+  else if (filterStatus === 'pending') list = list.filter(g => !g.checkedIn);
   // stats
   const gt = document.getElementById('guest-stat-total'); if (gt) gt.textContent = guests.length;
   const gc = document.getElementById('guest-stat-checked'); if (gc) gc.textContent = guests.filter(g=>g.checkedIn).length;
