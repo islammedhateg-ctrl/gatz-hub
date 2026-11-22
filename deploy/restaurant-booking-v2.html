@@ -1290,7 +1290,7 @@ tbody tr.selected { background: var(--primary-soft); }
     font-weight: 800 !important;
     padding: 0 12px !important;
     height: 48px !important;
-    text-align: start !important;
+    text-align: center !important;
     width: 100% !important;
   }
   #quick-door-select option {
@@ -2723,6 +2723,29 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
     <div class="modal-footer">
       <button class="btn btn-outline btn-sm" onclick="closeModal('confirm-modal')" data-i18n="action.cancel">إلغاء</button>
       <button class="btn btn-danger btn-sm" id="confirm-ok" data-i18n="action.confirm">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<!-- مودال عدد الضيوف (بدل prompt الأصلي) -->
+<div class="modal-backdrop" id="batch-guest-modal" onclick="if(event.target===this)closeModal('batch-guest-modal')">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <h3 id="batch-modal-title">عدد الضيوف</h3>
+      <button class="modal-close" onclick="closeModal('batch-guest-modal')" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p id="batch-modal-hint" style="font-size:.82rem; color:var(--muted); margin-bottom:14px;"></p>
+      <div style="display:flex; align-items:center; gap:10px; justify-content:center;">
+        <button class="btn btn-outline" onclick="changeBatchGuest(-1)" style="width:46px;height:46px;padding:0;flex:0 0 46px;font-size:1.3rem;">−</button>
+        <input id="batch-guest-count" type="number" dir="ltr" min="1" value="2" style="width:100px;height:46px;text-align:center;font-size:1.3rem;font-weight:800;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);color:var(--text);">
+        <button class="btn btn-outline" onclick="changeBatchGuest(1)" style="width:46px;height:46px;padding:0;flex:0 0 46px;font-size:1.3rem;">+</button>
+      </div>
+      <p id="batch-modal-max" style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:12px;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('batch-guest-modal')" id="batch-modal-cancel" style="flex:1;">إلغاء</button>
+      <button class="btn btn-primary" onclick="confirmBatchGuest()" id="batch-modal-confirm" style="flex:1;">تأكيد الدخول</button>
     </div>
   </div>
 </div>
@@ -6990,9 +7013,35 @@ function incrementGuest(count) {
   toast(t('toast.checkedIn'), 'success');
 }
 
-function incrementGuestBatch() {
-  const num = prompt(currentLang === 'ar' ? 'عدد الضيوف:' : 'Number of guests:', '2');
-  if (num && !isNaN(num) && Number(num) > 0) incrementGuest(Number(num));
+let batchGuestMax = 1;
+function incrementGuestBatch() { openBatchGuestModal(); }
+function openBatchGuestModal() {
+  const b = bookings.find(x => x.id === activeDoorBookingId);
+  if (!b) return;
+  batchGuestMax = Math.max(1, (b.guests || 0) - (b.checkedIn || 0));
+  const ar = currentLang === 'ar';
+  document.getElementById('batch-modal-title').textContent = ar ? 'عدد الضيوف' : 'Number of guests';
+  document.getElementById('batch-modal-hint').textContent = ar
+    ? 'كم ضيف تريد إدخاله دفعة واحدة؟' : 'How many guests would you like to check in at once?';
+  document.getElementById('batch-modal-max').textContent = (ar ? 'الحد الأقصى: ' : 'Maximum: ') + batchGuestMax;
+  document.getElementById('batch-modal-cancel').textContent = ar ? 'إلغاء' : 'Cancel';
+  document.getElementById('batch-modal-confirm').textContent = ar ? 'تأكيد الدخول' : 'Confirm check-in';
+  const input = document.getElementById('batch-guest-count');
+  input.max = batchGuestMax;
+  input.value = Math.min(2, batchGuestMax);
+  document.getElementById('batch-guest-modal').classList.add('open');
+  input.focus();
+}
+function changeBatchGuest(delta) {
+  const input = document.getElementById('batch-guest-count');
+  let n = Number(input.value) || 1;
+  input.value = Math.max(1, Math.min(batchGuestMax, n + delta));
+}
+function confirmBatchGuest() {
+  const input = document.getElementById('batch-guest-count');
+  let n = Number(input.value) || 1;
+  closeModal('batch-guest-modal');
+  incrementGuest(Math.max(1, Math.min(batchGuestMax, n)));
 }
 
 function undoLastCheckIn() {
