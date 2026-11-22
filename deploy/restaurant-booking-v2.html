@@ -2095,7 +2095,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
               </svg>
               <div class="label">
                 <div class="n" id="door-checked-in">0</div>
-                <div class="d">/ <span id="door-expected">0</span></div>
+                <div class="d"><span dir="ltr">/ <span id="door-expected">0</span></span></div>
               </div>
             </div>
             <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
@@ -6950,7 +6950,7 @@ function lookupBookingForDoor() {
   document.getElementById('door-b-zone').textContent = zoneName(zone);
   document.getElementById('door-b-id').textContent = b.id;
   document.getElementById('door-b-type').textContent = b.type;
-  document.getElementById('door-b-time').textContent = `${b.date} (${b.start} – ${b.end})`;
+  document.getElementById('door-b-time').innerHTML = `${escapeHtml(b.date)} <span dir="ltr">(${escapeHtml(b.start)} – ${escapeHtml(b.end)})</span>`;
   document.getElementById('door-checked-in').textContent = b.checkedIn;
   document.getElementById('door-expected').textContent = b.guests;
   updateProgressRing(b.checkedIn, b.guests);
@@ -6981,11 +6981,11 @@ function incrementGuest(count) {
   }
   document.getElementById('door-checked-in').textContent = b.checkedIn;
   updateProgressRing(b.checkedIn, b.guests);
-  updateQuickDoorSelect();
-  renderRecentCheckins();
   const item = { id: b.id, name: b.name, count, time: new Date().toLocaleTimeString() };
   recentCheckins.unshift(item);
   if (recentCheckins.length > 8) recentCheckins.pop();
+  updateQuickDoorSelect();
+  renderRecentCheckins();
   saveData();
   toast(t('toast.checkedIn'), 'success');
 }
@@ -7005,6 +7005,12 @@ function undoLastCheckIn() {
       document.getElementById('door-checked-in').textContent = b.checkedIn;
       updateProgressRing(b.checkedIn, b.guests);
     }
+    // شيل آخر عملية دخول من السجل عشان ما يظهرش بعد التراجع
+    if (recentCheckins.length && recentCheckins[0].id === lastCheckinUndo.id) {
+      recentCheckins.shift();
+      renderRecentCheckins();
+      saveData();
+    }
     updateQuickDoorSelect();
     toast('Undone', 'info');
   }
@@ -7019,7 +7025,7 @@ function renderRecentCheckins() {
     <div class="checkin-item">
       <span class="dot"></span>
       <span style="flex:1;">${escapeHtml(c.name)}</span>
-      <span style="color:var(--muted); font-size:.75rem;">+${c.count} · ${c.time}</span>
+      <span dir="ltr" style="color:var(--muted); font-size:.75rem;">+${c.count} · ${c.time}</span>
     </div>
   `).join('');
 }
