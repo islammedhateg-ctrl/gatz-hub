@@ -5665,21 +5665,30 @@ function renderGuests() {
   const search = (document.getElementById('guests-search')?.value || '').toLowerCase().trim();
   const filterEvent = document.getElementById('guests-event-filter')?.value || '';
   const filterStatus = document.getElementById('guests-status-filter')?.value || '';
-  // populate event filter
+  // populate event filter من أنواع الحجوزات
   const ef = document.getElementById('guests-event-filter');
   if (ef && ef.options.length <= 1) {
-    const events = [...new Set(guests.map(g => g.eventId).filter(Boolean))];
-    events.forEach(eid => {
+    const types = [...new Set(bookings.map(b => b.type).filter(Boolean))];
+    types.forEach(tp => {
       const o = document.createElement('option');
-      o.value = eid;
-      const bk = bookings.find(b => b.id === eid);
-      o.textContent = eid + (bk ? ' - ' + bk.name : '');
+      o.value = tp;
+      o.textContent = tp;
       ef.appendChild(o);
     });
   }
   let list = [...guests];
-  if (search) list = list.filter(g => (g.name||'').toLowerCase().includes(search) || (g.phone||'').includes(search) || (g.id||'').toLowerCase().includes(search));
-  if (filterEvent) list = list.filter(g => g.eventId === filterEvent);
+  if (search) list = list.filter(g => {
+    const bk = bookings.find(x => x.id === g.eventId);
+    return (g.name||'').toLowerCase().includes(search)
+      || (g.phone||'').includes(search)
+      || (g.id||'').toLowerCase().includes(search)
+      || (g.eventId||'').toLowerCase().includes(search)
+      || (bk && (bk.name||'').toLowerCase().includes(search));
+  });
+  if (filterEvent) list = list.filter(g => {
+    const bk = bookings.find(x => x.id === g.eventId);
+    return bk && bk.type === filterEvent;
+  });
   if (filterStatus === 'checked') list = list.filter(g => g.checkedIn);
   else if (filterStatus === 'pending') list = list.filter(g => !g.checkedIn);
   // stats
