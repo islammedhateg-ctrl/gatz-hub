@@ -4525,7 +4525,7 @@ function renderCharts() {
       return bookings.filter(b => b.date === ds).length;
     });
     // أسماء الأيام كاملة — تُشتق من التاريخ الفعلي (صحيح لأي يوم، مش ثابت)
-    const arDaysShort = ['أحد','إثن','ثلا','أرب','خمي','جمع','سبت'];
+    const arDaysShort = ['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
     const enDaysShort = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const labels = days.map(d => {
       return currentLang === 'ar' ? arDaysShort[d.getDay()] : enDaysShort[d.getDay()];
@@ -4608,7 +4608,7 @@ function renderCharts() {
   // ---- Bar chart: deposits per weekday ----
   const barEl = document.getElementById('bar-chart');
   if (barEl) {
-    const arDays = ['أحد','إثن','ثلا','أرب','خمي','جمع','سبت'];
+    const arDays = ['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
     const enDays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const dayNames = currentLang === 'ar' ? arDays : enDays;
     const todayIdx = new Date().getDay();
