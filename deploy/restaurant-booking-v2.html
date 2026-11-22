@@ -1286,7 +1286,7 @@ tbody tr.selected { background: var(--primary-soft); }
     background: var(--surface-2) !important;
     color: var(--text) !important;
     border: 1px solid var(--border) !important;
-    font-size: 14px !important;
+    font-size: 12px !important;
     font-weight: 600 !important;
     padding: 0 12px !important;
     height: 48px !important;
@@ -1296,7 +1296,7 @@ tbody tr.selected { background: var(--primary-soft); }
   #quick-door-select option {
     background: var(--surface) !important;
     color: var(--text) !important;
-    font-size: 14px !important;
+    font-size: 12px !important;
     font-weight: 600 !important;
     padding: 8px !important;
   }
@@ -2066,7 +2066,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           <h2><i class="fa-solid fa-qrcode"></i> <span data-i18n="door.scanTitle">مسح كود الدخول</span></h2>
           <p data-i18n="door.scanHint">أدخل رقم الحجز (BK-) أو امسح QR</p>
           <div class="scan-input-row">
-            <input class="scan-input" type="text" id="scan-input" dir="ltr" data-i18n-placeholder="door.placeholder" placeholder="BK-1001" value="BK-" oninput="enforceBkPrefix(this)" onfocus="enforceBkPrefix(this)" onkeydown="if(event.key==='Enter')lookupBookingForDoor()">
+            <input class="scan-input" type="text" id="scan-input" dir="ltr" inputmode="numeric" data-i18n-placeholder="door.placeholder" placeholder="BK-1001" value="BK-" oninput="enforceBkPrefix(this)" onfocus="enforceBkPrefix(this)" onkeydown="if(event.key==='Enter')lookupBookingForDoor()">
             <button class="btn btn-primary door-icon-btn" onclick="lookupBookingForDoor()" title="Search / بحث" aria-label="Search / بحث"><i class="fa-solid fa-magnifying-glass"></i></button>
           </div>
           <div class="scan-input-row" style="margin-top:10px;">
@@ -7386,9 +7386,9 @@ function enforceBkPrefix(el) {
   // المستخدم لسه بيكتب البادئة (B / BK / BK-) — سيبه كمل هو
   if (up === 'B' || up === 'BK' || up === 'BK-') return;
   // البادئة موجودة بالفعل — وحّد شكلها بس
-  if (up.startsWith('BK-')) { el.value = 'BK-' + v.slice(3); return; }
-  // أي قيمة تانية (رقم أو نص) — ضيف البادئة بعد شيل أي بقايا
-  v = v.replace(/^BK-?/i, '').replace(/^B$|^BK$/i, '');
+  if (up.startsWith('BK-')) { el.value = 'BK-' + v.slice(3).replace(/\D/g, ''); return; }
+  // أي قيمة تانية (رقم أو نص) — ضيف البادئة واسمح بأرقام بس
+  v = v.replace(/^BK-?/i, '').replace(/^B$|^BK$/i, '').replace(/\D/g, '');
   el.value = 'BK-' + v;
 }
 // منع إشعار مكرر على الجهاز اللي عمل التغيير بنفسه
