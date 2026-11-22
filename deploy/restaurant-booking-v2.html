@@ -1016,6 +1016,15 @@ tbody tr.selected { background: var(--primary-soft); }
 .bottom-nav-fab.active { background: var(--primary-hover); }
 .bottom-nav-fab i { font-size: 1.35rem; }
 
+/* ترتيب احترافي لصفوف «نظرة اليوم» على الكمبيوتر — بدون هيدر، خط سفلي فقط */
+.today-row-desktop {
+  display: grid !important;
+  grid-template-columns: 84px minmax(110px, 1.2fr) minmax(120px, 1.3fr) 100px 72px 32px !important;
+  gap: 12px !important; align-items: center !important;
+}
+.today-row-desktop:hover { background: var(--surface-2); border-radius: 8px; }
+.today-row-desktop > span, .today-row-desktop > button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Responsive */
 @media (max-width: 1024px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -4514,10 +4523,10 @@ function renderCharts() {
       return bookings.filter(b => b.date === ds).length;
     });
     // أسماء الأيام كاملة — تُشتق من التاريخ الفعلي (صحيح لأي يوم، مش ثابت)
-    const arDaysFull = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-    const enDaysFull = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const arDaysShort = ['أحد','إثن','ثلا','أرب','خمي','جمع','سبت'];
+    const enDaysShort = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const labels = days.map(d => {
-      return currentLang === 'ar' ? arDaysFull[d.getDay()] : enDaysFull[d.getDay()];
+      return currentLang === 'ar' ? arDaysShort[d.getDay()] : enDaysShort[d.getDay()];
     });
     const W = 320, H = 110, padX = 16, padY = 16;
     const max = Math.max(1, ...values);
@@ -4695,18 +4704,16 @@ function renderTodayOverview() {
   if (todayBookings.length === 0) {
     html += `<div style="color:var(--muted); font-size:.85rem; padding:8px 0;">${t('today.empty')}</div>`;
   } else {
-    html += `<div style="max-height:220px; overflow-y:auto;">
-      <div class="today-row" style="padding:6px 0; border-bottom:1px solid var(--border); font-size:.68rem; color:var(--muted); font-weight:800; text-transform:uppercase;">
-        <span>${t('col.customer')}</span><span>${t('col.zone')}</span><span>${t('col.time')||'الوقت'}</span><span>${t('col.attendance')||'الحضور'}</span><span></span>
-      </div>`;
+    html += `<div style="max-height:220px; overflow-y:auto;">`;
     todayBookings.forEach(b => {
       const zone = zones.find(z => z.id === b.zoneId) || { name: b.zoneId, nameEn: b.zoneId };
       html += `
-        <div class="today-row" style="padding:8px 0; border-bottom:1px solid var(--border); font-size:.82rem;">
-          <span style="font-weight:700;" title="${escapeHtml(b.name)}">${escapeHtml(b.name)}</span>
-          <span style="color:var(--muted);" title="${escapeHtml(zoneName(zone))}">${escapeHtml(zoneName(zone))}</span>
-          <span style="color:var(--muted);">${b.start}–${b.end}</span>
-          <span style="color:var(--success); font-weight:700;">${b.checkedIn}/${b.guests}</span>
+        <div class="today-row today-row-desktop" style="padding:9px 4px; border-bottom:1px solid var(--border); font-size:.85rem;">
+          <span class="tr-id" style="font-weight:800; color:var(--primary); font-family:monospace;">${escapeHtml(b.id)}</span>
+          <span class="tr-name" style="font-weight:700;" title="${escapeHtml(b.name)}">${escapeHtml(b.name)}</span>
+          <span class="tr-zone" style="color:var(--muted);" title="${escapeHtml(zoneName(zone))}">${escapeHtml(zoneName(zone))}</span>
+          <span class="tr-time" style="color:var(--muted); font-variant-numeric:tabular-nums;">${b.start}–${b.end}</span>
+          <span class="tr-att" style="color:var(--success); font-weight:700; font-variant-numeric:tabular-nums;">${b.checkedIn}/${b.guests}</span>
           <button class="btn btn-ghost btn-sm" onclick="openBookingDetails('${jsSafe(b.id)}')" title="${b.id}"><i class="fa-solid fa-eye"></i></button>
         </div>
       `;
