@@ -5570,7 +5570,7 @@ function showGuestTicket(guest, data) {
     <div class="ticket-header">
       <div class="tk-brand">Gatz. Hub</div>
       <div class="tk-sub">${escapeHtml(t('guestticket.subtitle'))}</div>
-      <div class="tk-type">${escapeHtml(data.t || guest.eventName || 'Event')}</div>
+      <div class="tk-type">${escapeHtml([data.t || guest.eventName || 'Event', data.n].filter(Boolean).join(' · '))}</div>
     </div>
     <div class="ticket-grid">
       <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.name'))}</div><div class="v">${escapeHtml(guest.name)}</div></div>
