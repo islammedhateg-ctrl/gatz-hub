@@ -776,6 +776,26 @@ select.input option:checked { background: var(--primary-soft); color: var(--prim
 .date-month div.off { opacity: .3; cursor: not-allowed; }
 .date-month div.on { background: var(--primary); color: #fff; font-weight: 800; }
 .date-month .wd { font-size: .6rem; color: var(--muted); cursor: default; }
+/* عجلة الوقت */
+.time-popup {
+  position: absolute; z-index: 700; top: calc(100% + 4px); inset-inline-start: 0; inset-inline-end: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--shadow-lg); padding: 12px; min-width: 260px;
+}
+.time-wheel { position: relative; display: grid; grid-template-columns: 1fr 1fr 70px; gap: 8px; height: 150px; overflow: hidden; }
+.time-wheel::before, .time-wheel::after { content: ''; position: absolute; left: 0; right: 0; height: 48px; z-index: 2; pointer-events: none; }
+.time-wheel::before { top: 0; background: linear-gradient(var(--surface), transparent); }
+.time-wheel::after { bottom: 0; background: linear-gradient(transparent, var(--surface)); }
+.tw-col { overflow-y: auto; text-align: center; scrollbar-width: none; }
+.tw-col::-webkit-scrollbar { display: none; }
+.tw-col div { height: 48px; line-height: 48px; font-size: .95rem; color: var(--muted); font-variant-numeric: tabular-nums; cursor: pointer; }
+.tw-col div.on { color: var(--primary); font-weight: 800; font-size: 1.1rem; background: var(--primary-soft); border-radius: 9px; margin: 0 6px; }
+.tw-band { position: absolute; top: 51px; left: 6px; right: 6px; height: 48px; border-top: 1.5px solid var(--primary); border-bottom: 1.5px solid var(--primary); border-radius: 9px; pointer-events: none; opacity: .35; }
+.tw-ampm { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.tw-ampm div { border: 1px solid var(--border); border-radius: 9px; padding: 10px; text-align: center; font-size: .8rem; font-weight: 800; cursor: pointer; }
+.tw-ampm div.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.tw-foot { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border); font-size: .68rem; color: var(--muted); }
+.tw-foot b { color: var(--primary); }
 .input::placeholder { color: var(--muted-2); }
 .helper { font-size: .75rem; color: var(--muted); }
 .helper.error { color: var(--danger); }
@@ -1915,14 +1935,20 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.start">وقت الوصول <span class="req">*</span></label>
-                  <div class="has-icon"><i class="fa-solid fa-clock field-icon"></i>
-                    <input class="input" type="time" id="b-start" value="18:00" required>
+                  <div class="has-icon" style="position:relative;">
+                    <i class="fa-solid fa-clock field-icon"></i>
+                    <input class="input" type="text" id="b-start-display" readonly onclick="toggleTimePopup('start')" aria-label="Arrival Time">
+                    <input type="hidden" id="b-start" value="18:00">
+                    <div class="time-popup" id="time-popup-start" style="display:none;"></div>
                   </div>
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.end">وقت المغادرة <span class="req">*</span></label>
-                  <div class="has-icon"><i class="fa-solid fa-clock-rotate-left field-icon"></i>
-                    <input class="input" type="time" id="b-end" value="22:00" required>
+                  <div class="has-icon" style="position:relative;">
+                    <i class="fa-solid fa-clock-rotate-left field-icon"></i>
+                    <input class="input" type="text" id="b-end-display" readonly onclick="toggleTimePopup('end')" aria-label="Departure Time">
+                    <input type="hidden" id="b-end" value="22:00">
+                    <div class="time-popup" id="time-popup-end" style="display:none;"></div>
                   </div>
                 </div>
                 <div class="form-group">
@@ -3919,6 +3945,7 @@ function loadDraft() {
   document.getElementById('b-guests').value = d.guests || 10;
   document.getElementById('b-start').value = d.start || '18:00';
   document.getElementById('b-end').value = d.end || '22:00';
+  refreshTimeDisplays();
   document.getElementById('b-deposit').value = d.deposit || 500;
   selectedZoneId = d.zoneId || null;
   renderPackageOptions(d.packageIndex || 0);
@@ -5385,6 +5412,69 @@ function toggleDatePopup() {
   if (show) { dateFullMonth = false; renderDatePopup(); }
   popup.style.display = show ? 'block' : 'none';
 }
+let timeTarget = null, timeHour = 6, timeMinute = 0, timePeriod = 'PM';
+function timeTo12(v) {
+  const p = String(v || '18:00').split(':');
+  const h = Number(p[0]) || 0, m = Number(p[1]) || 0;
+  const ap = h >= 12 ? 'PM' : 'AM';
+  let h12 = h % 12; if (h12 === 0) h12 = 12;
+  return { h12, m, ap };
+}
+function formatTimeDisplay(v) {
+  const t = timeTo12(v);
+  return String(t.h12).padStart(2, '0') + ':' + String(t.m).padStart(2, '0') + ' ' + t.ap;
+}
+function refreshTimeDisplays() {
+  ['start','end'].forEach(k => {
+    const el = document.getElementById('b-' + k + '-display');
+    if (el) el.value = formatTimeDisplay(document.getElementById('b-' + k).value);
+  });
+}
+function renderTimePopup() {
+  if (!timeTarget) return;
+  const host = document.getElementById('time-popup-' + timeTarget);
+  if (!host) return;
+  const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+  const mins = Array.from({ length: 12 }, (_, i) => i * 5);
+  if (!mins.includes(timeMinute)) mins.push(timeMinute);
+  mins.sort((a, b) => a - b);
+  const selectedHour = String(timeHour).padStart(2, '0');
+  const selectedMin = String(timeMinute).padStart(2, '0');
+  host.innerHTML = `<div class="time-wheel"><div class="tw-band"></div>
+    <div class="tw-col">${hours.map(h => `<div class="${h === selectedHour ? 'on' : ''}" onclick="setTimeHour('${h}')">${h}</div>`).join('')}</div>
+    <div class="tw-col">${mins.map(m => { const s = String(m).padStart(2,'0'); return `<div class="${s === selectedMin ? 'on' : ''}" onclick="setTimeMinute('${m}')">${s}</div>`; }).join('')}</div>
+    <div class="tw-ampm"><div class="${timePeriod === 'AM' ? 'on' : ''}" onclick="setTimePeriod('AM')">AM</div><div class="${timePeriod === 'PM' ? 'on' : ''}" onclick="setTimePeriod('PM')">PM</div></div>
+  </div><div class="tw-foot"><span>${currentLang === 'ar' ? 'اسحب أو اضغط للاختيار' : 'Scroll or tap to select'}</span><span>${currentLang === 'ar' ? 'المختار' : 'Selected'}: <b>${formatTimeDisplay(document.getElementById('b-' + timeTarget).value)}</b></span></div>`;
+  host.querySelectorAll('.tw-col').forEach(c => {
+    const on = c.querySelector('.on');
+    if (on) c.scrollTop = Math.max(0, on.offsetTop - c.clientHeight / 2 + 24);
+  });
+}
+function setTimeHour(h) { timeHour = Number(h); commitTime(); }
+function setTimeMinute(m) { timeMinute = Number(m); commitTime(); }
+function setTimePeriod(p) { timePeriod = p; commitTime(); }
+function commitTime() {
+  let h = timeHour % 12;
+  if (timePeriod === 'PM') h += 12;
+  const iso = String(h).padStart(2, '0') + ':' + String(timeMinute).padStart(2, '0');
+  const el = document.getElementById('b-' + timeTarget);
+  if (el) el.value = iso;
+  refreshTimeDisplays();
+  renderTimePopup();
+}
+function toggleTimePopup(target) {
+  const host = document.getElementById('time-popup-' + target);
+  if (!host) return;
+  const show = host.style.display === 'none';
+  ['start','end'].forEach(k => { const h = document.getElementById('time-popup-' + k); if (h) h.style.display = 'none'; });
+  if (show) {
+    timeTarget = target;
+    const t = timeTo12(document.getElementById('b-' + target).value);
+    timeHour = t.h12; timeMinute = t.m; timePeriod = t.ap;
+    renderTimePopup();
+    host.style.display = 'block';
+  } else { timeTarget = null; }
+}
 function updateDateMin() {
   const bd = document.getElementById('b-date');
   if (bd) bd.min = todayStr();
@@ -5666,6 +5756,7 @@ function saveBooking() {
   refreshDateDisplay();
   document.getElementById('b-start').value = '18:00';
   document.getElementById('b-end').value = '22:00';
+  refreshTimeDisplays();
   document.getElementById('b-guests').value = 10;
   document.getElementById('b-deposit').value = 500;
   document.getElementById('transfer-box').style.display = 'none';
@@ -6054,6 +6145,7 @@ function editBooking(id) {
   document.getElementById('b-guests').value = b.guests || 1;
   document.getElementById('b-start').value = b.start || '18:00';
   document.getElementById('b-end').value = b.end || '22:00';
+  refreshTimeDisplays();
   document.getElementById('b-deposit').value = b.deposit || 0;
   selectedZoneId = b.zoneId;
   renderPackageOptions(b.packageIndex != null ? b.packageIndex : 0);
@@ -7858,15 +7950,19 @@ async function cloudRestore() {
   await cloudLoad();
   return currentUser;
 }
-// تهيئة حقل الباقة والتاريخ في نموذج الحجز
+// تهيئة حقول الباقة والتاريخ والوقت في نموذج الحجز
 renderPackageOptions();
 refreshDateDisplay();
+refreshTimeDisplays();
 document.addEventListener('click', function (e) {
-  const popup = document.getElementById('date-popup');
-  const display = document.getElementById('b-date-display');
-  if (popup && display && popup.style.display === 'block' && !popup.contains(e.target) && e.target !== display) {
-    popup.style.display = 'none';
-  }
+  const dp = document.getElementById('date-popup');
+  const dd = document.getElementById('b-date-display');
+  if (dp && dd && dp.style.display === 'block' && !dp.contains(e.target) && e.target !== dd) dp.style.display = 'none';
+  ['start','end'].forEach(k => {
+    const tp = document.getElementById('time-popup-' + k);
+    const td = document.getElementById('b-' + k + '-display');
+    if (tp && td && tp.style.display === 'block' && !tp.contains(e.target) && e.target !== td) tp.style.display = 'none';
+  });
 });
 </script>
 
