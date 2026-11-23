@@ -5743,7 +5743,7 @@ function saveBooking() {
     }
     saveData();
     addNotification('info', t('notif.updated') || 'تم تحديث حجز', `${existing.name} — ${existing.id}`, existing.id);
-    sendBookingPush('updated', t('notif.updated') || 'تم تحديث حجز', `${existing.name} — ${existing.id}`);
+    sendBookingPush('updated', bookingPushData(existing));
     toast(t('notif.updated') || 'تم تحديث الحجز', 'success');
     editingBookingId = null;
     document.getElementById('btn-submit').innerHTML = `<i class="fa-solid fa-check"></i> <span data-i18n="action.confirm">تأكيد الحجز</span>`;
@@ -5754,7 +5754,7 @@ function saveBooking() {
     saveData();
     const zone = zones.find(z => z.id === selectedZoneId);
     addNotification('new', t('notif.newBooking'), `${newBooking.name} — ${newBooking.id} — ${zone ? zoneName(zone) : selectedZoneId}`, newBooking.id);
-    sendBookingPush('new', t('notif.newBooking'), `${newBooking.name} — ${newBooking.id}`);
+    sendBookingPush('new', bookingPushData(newBooking));
     clearDraft(true);
     toast(t('toast.saved'), 'success');
   }
@@ -6496,7 +6496,7 @@ function confirmCancelBooking() {
   b.cancelNote = (document.getElementById('cancel-note').value || '').trim();
   saveData();
   addNotification('cancelled', t('notif.cancelled'), `${b.name} — ${b.id} (${cancelReasonLabel(reasonVal)})`, b.id);
-  sendBookingPush('cancelled', t('notif.cancelled'), `${b.name} — ${b.id}`);
+  sendBookingPush('cancelled', bookingPushData(b));
   closeModal('cancel-reason-modal');
   renderAll(); renderBookings();
   toast(t('booking.cancelled'), 'success');
@@ -6527,7 +6527,7 @@ function deleteBooking(id) {
       saveData();
       if (b) {
         addNotification('cancelled', t('notif.cancelled'), `${b.name} — ${id}`, id);
-        sendBookingPush('updated', t('notif.restored') || 'تمت الاستعادة', `${b.name} — ${id}`);
+        sendBookingPush('updated', bookingPushData(b));
       }
       renderAll();
       renderBookings();
@@ -6983,7 +6983,8 @@ async function subscribeWebPush() {
     const { error } = await CLOUD.client.from('push_subscriptions').upsert({
       user_id: user ? user.id : null,
       endpoint: sub.endpoint,
-      subscription: sub.toJSON()
+      subscription: sub.toJSON(),
+      lang: currentLang
     }, { onConflict: 'endpoint' });
     if (error) throw new Error('DB: ' + error.message);
   }
@@ -7027,7 +7028,16 @@ async function requestBrowserNotify() {
     }
   } catch (e) { if (label) label.textContent = currentLang === 'ar' ? 'تعذّر طلب الإذن' : 'Could not request permission'; }
 }
-async function sendBookingPush(type, title, body) {
+function bookingPushData(b) {
+  const z = zones.find(x => x.id === b.zoneId) || {};
+  return {
+    name: b.name || '', date: b.date || '', time: b.start || '',
+    zoneAr: z.name || '', zoneEn: z.nameEn || '', eventType: b.type || '',
+    packageName: (z.packageNames && z.packageNames[b.packageIndex]) || '',
+    guests: Number(b.guests) || 0
+  };
+}
+async function sendBookingPush(type, data) {
   try {
     if (!pushSubscription && 'serviceWorker' in navigator) {
       const reg = await navigator.serviceWorker.ready;
@@ -7039,10 +7049,7 @@ async function sendBookingPush(type, title, body) {
     await fetch(CLOUD.URL + '/functions/v1/send-push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sess.session.access_token },
-      body: JSON.stringify({
-        title: title, body: body, url: '#bookings',
-        tag: 'gatz-' + type, excludeEndpoint: pushSubscription.endpoint
-      })
+      body: JSON.stringify({ type, ...data, url: '#bookings', tag: 'gatz-' + type, excludeEndpoint: pushSubscription.endpoint })
     });
   } catch (e) {}
 }
