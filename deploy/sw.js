@@ -1,7 +1,7 @@
 /* Gatz. Hub Service Worker — Network-first for HTML, Cache-first for assets */
 
-const STATIC_CACHE = 'gatz-hub-static-v2';
-const RUNTIME_CACHE = 'gatz-hub-runtime-v2';
+const STATIC_CACHE = 'gatz-hub-static-v3';
+const RUNTIME_CACHE = 'gatz-hub-runtime-v3';
 const PRECACHE = ['./restaurant-booking-v2.html', './gatz-word.png', './gatz-brand-icon.png', './manifest.json'];
 
 // تثبيت: تحميل الملفات الأساسية مسبقاً
@@ -26,6 +26,40 @@ self.addEventListener('activate', (e) => {
 // تحديث تلقائي عند طلب SKIP_WAITING من الصفحة
 self.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
+// Web Push: عرض الإشعار حتى لو التطبيق مقفول
+self.addEventListener('push', (e) => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (err) { data = {}; }
+  const title = data.title || 'Gatz. Hub';
+  const options = {
+    body: data.body || '',
+    icon: './gatz-brand-icon.png',
+    badge: './gatz-brand-icon.png',
+    tag: data.tag || 'gatz-hub',
+    data: { url: data.url || '#dashboard' },
+    vibrate: [120, 60, 120]
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+// فتح التطبيق عند الضغط على الإشعار
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const target = (e.notification.data && e.notification.data.url) || '#dashboard';
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if (client.focus) {
+          client.focus();
+          if (client.navigate) client.navigate(target);
+          return;
+        }
+      }
+      return self.clients.openWindow('./restaurant-booking-v2.html' + target);
+    })
+  );
 });
 
 // Fetch strategy

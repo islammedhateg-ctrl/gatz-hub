@@ -2286,10 +2286,11 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
             <div class="sound-icon"><i class="fa-regular fa-bell"></i></div>
             <div class="sound-info">
               <b data-i18n="notif.browserTitle">إشعارات المتصفح</b>
-              <span id="notif-perm-label" data-i18n="notif.browserHint">فعّلها لاستقبال الإشعارات حتى والصفحة مفتوحة</span>
+              <span id="notif-perm-label" data-i18n="notif.browserHint">فعّلها لاستقبال الإشعارات حتى لو التطبيق مقفول</span>
             </div>
             <div class="sound-actions">
               <button class="btn btn-outline btn-sm" onclick="requestBrowserNotify()" data-i18n="notif.browserBtn">تفعيل</button>
+              <button class="btn btn-ghost btn-sm" onclick="disableWebPush()" data-i18n="notif.disable">إيقاف</button>
             </div>
           </div>
 
@@ -3042,8 +3043,10 @@ const I18N = {
     'notif.title': 'الإشعارات',
     'notif.markAllRead': 'تحديد الكل كمقروء',
     'notif.browserTitle': 'إشعارات المتصفح',
-    'notif.browserHint': 'فعّلها لاستقبال الإشعارات حتى والصفحة مفتوحة',
+    'notif.browserHint': 'فعّلها لاستقبال الإشعارات حتى لو التطبيق مقفول',
     'notif.browserBtn': 'تفعيل',
+    'notif.disable': 'إيقاف',
+    'notif.restored': 'تمت استعادة الحجز',
     'notif.browserOn': 'مفعّلة ✓',
     'notif.clear': 'مسح',
     'notif.newBooking': 'حجز جديد',
@@ -3432,8 +3435,10 @@ const I18N = {
     'notif.title': 'Notifications',
     'notif.markAllRead': 'Mark all read',
     'notif.browserTitle': 'Browser notifications',
-    'notif.browserHint': 'Enable to receive alerts while the page is open',
+    'notif.browserHint': 'Enable to receive alerts even when the app is closed',
     'notif.browserBtn': 'Enable',
+    'notif.disable': 'Disable',
+    'notif.restored': 'Booking restored',
     'notif.browserOn': 'Enabled ✓',
     'notif.clear': 'Clear',
     'notif.newBooking': 'New booking',
@@ -4371,7 +4376,9 @@ function showTab(tabId, btn) {
     updateSoundButtons(); applyUX();
     renderUsersTable();
     const nl = document.getElementById('notif-perm-label');
-    if (nl && 'Notification' in window && Notification.permission === 'granted') nl.textContent = t('notif.browserOn');
+    if (nl && 'Notification' in window && Notification.permission === 'granted') {
+      nl.textContent = pushSubscription ? ((t('notif.browserOn') || 'Enabled') + ' ✓') : (currentLang === 'ar' ? 'اسمح بالدفع من الزر' : 'Enable push via the button');
+    }
   }
   if (tabId !== 'door') stopQrScan();
   applyI18n();
@@ -5736,6 +5743,7 @@ function saveBooking() {
     }
     saveData();
     addNotification('info', t('notif.updated') || 'تم تحديث حجز', `${existing.name} — ${existing.id}`, existing.id);
+    sendBookingPush('updated', t('notif.updated') || 'تم تحديث حجز', `${existing.name} — ${existing.id}`);
     toast(t('notif.updated') || 'تم تحديث الحجز', 'success');
     editingBookingId = null;
     document.getElementById('btn-submit').innerHTML = `<i class="fa-solid fa-check"></i> <span data-i18n="action.confirm">تأكيد الحجز</span>`;
@@ -5746,6 +5754,7 @@ function saveBooking() {
     saveData();
     const zone = zones.find(z => z.id === selectedZoneId);
     addNotification('new', t('notif.newBooking'), `${newBooking.name} — ${newBooking.id} — ${zone ? zoneName(zone) : selectedZoneId}`, newBooking.id);
+    sendBookingPush('new', t('notif.newBooking'), `${newBooking.name} — ${newBooking.id}`);
     clearDraft(true);
     toast(t('toast.saved'), 'success');
   }
@@ -6487,6 +6496,7 @@ function confirmCancelBooking() {
   b.cancelNote = (document.getElementById('cancel-note').value || '').trim();
   saveData();
   addNotification('cancelled', t('notif.cancelled'), `${b.name} — ${b.id} (${cancelReasonLabel(reasonVal)})`, b.id);
+  sendBookingPush('cancelled', t('notif.cancelled'), `${b.name} — ${b.id}`);
   closeModal('cancel-reason-modal');
   renderAll(); renderBookings();
   toast(t('booking.cancelled'), 'success');
@@ -6515,7 +6525,10 @@ function deleteBooking(id) {
     if (ok) {
       bookings = bookings.filter(x => x.id !== id);
       saveData();
-      if (b) addNotification('cancelled', t('notif.cancelled'), `${b.name} — ${id}`, id);
+      if (b) {
+        addNotification('cancelled', t('notif.cancelled'), `${b.name} — ${id}`, id);
+        sendBookingPush('updated', t('notif.restored') || 'تمت الاستعادة', `${b.name} — ${id}`);
+      }
       renderAll();
       renderBookings();
       toast(t('toast.deleted'), 'success');
@@ -6933,17 +6946,99 @@ function clearNotifications() {
   });
 }
 
+const VAPID_PUBLIC_KEY = 'BMDd9uzN6oJlD6Kwem-uExONqDIJE1LqNWPPbzgpUH8TwYxL0Jflf5EzQiexZPuVk5h-t5GCnqYJa3czPrgDz2E';
+let pushSubscription = null;
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+async function subscribeWebPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('Push not supported');
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+  }
+  pushSubscription = sub;
+  try { localStorage.setItem('rest_push_endpoint', sub.endpoint); } catch (e) {}
+  if (CLOUD.enabled && CLOUD.client) {
+    let user = null;
+    try { const r = await CLOUD.client.auth.getUser(); user = r.data && r.data.user; } catch (e) {}
+    const { error } = await CLOUD.client.from('push_subscriptions').upsert({
+      user_id: user ? user.id : null,
+      endpoint: sub.endpoint,
+      subscription: sub.toJSON()
+    }, { onConflict: 'endpoint' });
+    if (error) throw error;
+  }
+  return sub;
+}
+async function disableWebPush() {
+  try {
+    if (!pushSubscription && 'serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      pushSubscription = await reg.pushManager.getSubscription();
+    }
+    const endpoint = pushSubscription ? pushSubscription.endpoint : localStorage.getItem('rest_push_endpoint');
+    if (pushSubscription) await pushSubscription.unsubscribe();
+    if (endpoint && CLOUD.enabled && CLOUD.client) {
+      await CLOUD.client.from('push_subscriptions').delete().eq('endpoint', endpoint);
+    }
+  } catch (e) {}
+  pushSubscription = null;
+  try { localStorage.removeItem('rest_push_endpoint'); } catch (e) {}
+  const label = document.getElementById('notif-perm-label');
+  if (label) label.textContent = currentLang === 'ar' ? 'الإشعارات متوقفة' : 'Notifications off';
+  toast(currentLang === 'ar' ? 'تم إيقاف الإشعارات' : 'Notifications disabled', 'info');
+}
 async function requestBrowserNotify() {
   const label = document.getElementById('notif-perm-label');
   if (!('Notification' in window)) { if (label) label.textContent = currentLang === 'ar' ? 'المتصفح لا يدعم الإشعارات' : 'Browser does not support notifications'; return; }
   try {
     const p = await Notification.requestPermission();
-    if (label) label.textContent = p === 'granted' ? t('notif.browserOn') : (currentLang === 'ar' ? 'لم يتم السماح — اسمح من إعدادات المتصفح' : 'Not allowed — enable in browser settings');
-    if (p === 'granted') { try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); await audioCtx.resume(); } catch(e) {} toast(t('notif.browserOn'), 'success'); }
+    if (p !== 'granted') {
+      if (label) label.textContent = currentLang === 'ar' ? 'لم يتم السماح — اسمح من إعدادات المتصفح' : 'Not allowed — enable in browser settings';
+      return;
+    }
+    try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); await audioCtx.resume(); } catch (e) {}
+    try {
+      await subscribeWebPush();
+      if (label) label.textContent = (t('notif.browserOn') || 'Enabled') + ' ✓';
+      toast(currentLang === 'ar' ? 'الإشعارات مفعّلة حتى لو التطبيق مقفول' : 'Notifications enabled even when closed', 'success');
+    } catch (e) {
+      if (label) label.textContent = currentLang === 'ar' ? 'تعذّر تفعيل الإشعارات — جرّب تاني' : 'Could not enable — try again';
+    }
   } catch (e) { if (label) label.textContent = currentLang === 'ar' ? 'تعذّر طلب الإذن' : 'Could not request permission'; }
+}
+async function sendBookingPush(type, title, body) {
+  try {
+    if (!pushSubscription && 'serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      pushSubscription = await reg.pushManager.getSubscription();
+    }
+    if (!pushSubscription || !CLOUD.enabled || !CLOUD.client) return;
+    const { data: sess } = await CLOUD.client.auth.getSession();
+    if (!sess || !sess.session) return;
+    await fetch(CLOUD.URL + '/functions/v1/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sess.session.access_token },
+      body: JSON.stringify({
+        title: title, body: body, url: '#bookings',
+        tag: 'gatz-' + type, excludeEndpoint: pushSubscription.endpoint
+      })
+    });
+  } catch (e) {}
 }
 function tryNativeNotify(title, body) {
   try {
+    if (pushSubscription) return; // الـ push بيغطي الإشعار — ما نكررش
     if (!('Notification' in window)) return;
     if (Notification.permission === 'granted') {
       new Notification(title, { body: body, icon: '' });
@@ -6952,7 +7047,7 @@ function tryNativeNotify(title, body) {
         if (p === 'granted') new Notification(title, { body: body });
       });
     }
-  } catch(e) {}
+  } catch (e) {}
 }
 
 window.addEventListener('storage', (e) => {
