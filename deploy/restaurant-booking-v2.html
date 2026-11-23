@@ -1889,7 +1889,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 <div class="form-group">
                   <label data-i18n="field.guests">عدد الأفراد <span class="req">*</span></label>
                   <div class="has-icon"><i class="fa-solid fa-users field-icon"></i>
-                    <input class="input" type="number" id="b-guests" min="1" value="10" required onchange="checkZoneCapacity()">
+                    <input class="input" type="number" id="b-guests" min="1" value="10" required onchange="checkZoneCapacity(); updateFees();" oninput="updateFees()">
                   </div>
                   <div class="helper" id="capacity-warning"></div>
                 </div>
@@ -1916,8 +1916,13 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
               <div class="form-group full" style="margin-bottom:16px;">
                 <label data-i18n="field.deposit">قيمة الديبوزيت (ج.م) <span class="req">*</span></label>
                 <div class="has-icon"><i class="fa-solid fa-sack-dollar field-icon"></i>
-                  <input class="input" type="number" id="b-deposit" min="0" value="500" required>
+                  <input class="input" type="number" id="b-deposit" min="0" value="500" required oninput="updateFees()">
                 </div>
+              </div>
+              <div class="form-group full" style="margin-bottom:16px;">
+                <label data-i18n="field.package">الباقة (رسوم لكل ضيف)</label>
+                <select class="input" id="b-package" onchange="updateFees()"></select>
+                <div id="fees-summary" style="margin-top:8px; font-size:.8rem; color:var(--muted); text-align:center;"></div>
               </div>
               <div class="form-group full" style="margin-bottom:16px;">
                 <label data-i18n="field.payment">طريقة الدفع <span class="req">*</span></label>
@@ -2481,6 +2486,15 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           <input class="input" type="number" id="ze-deposit" min="0">
         </div>
       </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block; font-weight:700; font-size:.8rem; margin-bottom:8px;" data-i18n="zones.packages">أسعار الباقات (للفرد)</label>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px;">
+          <div><label style="font-size:.65rem;color:var(--muted);display:block;margin-bottom:3px;" data-i18n="pkg.1">باقة 1</label><input class="input" type="number" id="ze-pkg-0" min="0" value="50"></div>
+          <div><label style="font-size:.65rem;color:var(--muted);display:block;margin-bottom:3px;" data-i18n="pkg.2">باقة 2</label><input class="input" type="number" id="ze-pkg-1" min="0" value="80"></div>
+          <div><label style="font-size:.65rem;color:var(--muted);display:block;margin-bottom:3px;" data-i18n="pkg.3">باقة 3</label><input class="input" type="number" id="ze-pkg-2" min="0" value="120"></div>
+          <div><label style="font-size:.65rem;color:var(--muted);display:block;margin-bottom:3px;" data-i18n="pkg.4">باقة 4</label><input class="input" type="number" id="ze-pkg-3" min="0" value="100"></div>
+        </div>
+      </div>
       <div class="sound-row" style="margin-bottom:0;">
         <div class="sound-info"><b data-i18n="zones.active">المنطقة مفعّلة</b><span data-i18n="zones.activeHint">تظهر في الحجوزات</span></div>
         <button class="switch on" id="ze-active" onclick="this.classList.toggle('on')" aria-label="Zone active"></button>
@@ -2918,6 +2932,9 @@ const I18N = {
     'customer.prevCancelled': 'حجز ملغي',
     'field.date': 'تاريخ الحجز',
     'field.type': 'نوع الحجز',
+    'field.package': 'الباقة (رسوم لكل ضيف)',
+    'field.fees': 'الرسوم',
+    'field.totalDue': 'الإجمالي المستحق',
     'field.guests': 'عدد الأفراد',
     'field.start': 'وقت الوصول',
     'field.end': 'وقت المغادرة',
@@ -2948,6 +2965,8 @@ const I18N = {
     'zones.nameAr': 'الاسم (عربي)',
     'zones.nameEn': 'الاسم (إنجليزي)',
     'zones.capacity': 'السعة (أفراد)',
+    'zones.packages': 'أسعار الباقات (للفرد)',
+    'pkg.1': 'باقة 1', 'pkg.2': 'باقة 2', 'pkg.3': 'باقة 3', 'pkg.4': 'باقة 4',
     'zones.minDeposit': 'الحد الأدنى للديبوزيت',
     'zones.active': 'المنطقة مفعّلة',
     'zones.activeHint': 'تظهر في الحجوزات',
@@ -3139,6 +3158,7 @@ const I18N = {
     'guestticket.date': 'التاريخ',
     'guestticket.time': 'الوقت',
     'guestticket.zone': 'المنطقة',
+    'guestticket.fee': 'رسوم الدخول',
     'guestticket.hint': 'أبرز هذا الكود لموظف البوابة',
     'guestticket.shareWA': 'إرسال تذكرتي واتساب',
     'guests.title': 'قاعدة بيانات الضيوف',
@@ -3301,6 +3321,9 @@ const I18N = {
     'customer.prevCancelled': 'Cancelled before',
     'field.date': 'Booking Date',
     'field.type': 'Booking Type',
+    'field.package': 'Package (fee per person)',
+    'field.fees': 'Fees',
+    'field.totalDue': 'Total due',
     'field.guests': 'Number of Guests',
     'field.start': 'Arrival Time',
     'field.end': 'Departure Time',
@@ -3331,6 +3354,8 @@ const I18N = {
     'zones.nameAr': 'Name (Arabic)',
     'zones.nameEn': 'Name (English)',
     'zones.capacity': 'Capacity (guests)',
+    'zones.packages': 'Package prices (per person)',
+    'pkg.1': 'Package 1', 'pkg.2': 'Package 2', 'pkg.3': 'Package 3', 'pkg.4': 'Package 4',
     'zones.minDeposit': 'Minimum deposit',
     'zones.active': 'Zone active',
     'zones.activeHint': 'Shown in bookings',
@@ -3517,6 +3542,7 @@ const I18N = {
     'guestticket.date': 'Date',
     'guestticket.time': 'Time',
     'guestticket.zone': 'Zone',
+    'guestticket.fee': 'Entry fee',
     'guestticket.hint': 'Show this code at the door',
     'guestticket.shareWA': 'Send my ticket on WhatsApp',
     'guests.title': 'Guest Database',
@@ -3625,7 +3651,7 @@ function setLang(lang) {
   if (activeTab === 'finance') renderFinance();
   if (activeTab === 'zones') renderZones();
   if (activeTab === 'door') { updateQuickDoorSelect(); renderRecentCheckins(); }
-  if (activeTab === 'new-booking') { renderZoneCards(); resetCustomerSearch(); }
+  if (activeTab === 'new-booking') { renderZoneCards(); renderPackageOptions(); resetCustomerSearch(); }
   if (activeTab === 'dashboard') renderDashboard();
   if (activeTab === 'settings') { const el = document.getElementById('set-account-number'); if (el) el.value = accountNumber; const pu = document.getElementById('set-public-url'); if (pu) pu.value = publicAppUrl; }
   applyI18n();
@@ -3775,15 +3801,21 @@ function toggleTheme() {
    DATA
    ============================================================ */
 const defaultZones = [
-  { id: 'Z1', name: 'Zone 1 - الصالة الرئيسية VIP', nameEn: 'Zone 1 - Main Hall VIP', capacity: 40, minDeposit: 1000, active: true },
-  { id: 'Z2', name: 'Zone 2 - التراس المفتوح (Garden)', nameEn: 'Zone 2 - Open Terrace (Garden)', capacity: 30, minDeposit: 750, active: true },
-  { id: 'Z3', name: 'Zone 3 - قاعة الاجتماعات', nameEn: 'Zone 3 - Meeting Hall', capacity: 25, minDeposit: 800, active: true },
-  { id: 'Z4', name: 'Zone 4 - ركن العائلات', nameEn: 'Zone 4 - Family Corner', capacity: 20, minDeposit: 500, active: true }
+  { id: 'Z1', name: 'Zone 1 - الصالة الرئيسية VIP', nameEn: 'Zone 1 - Main Hall VIP', capacity: 40, minDeposit: 1000, packages: [50,80,120,100], active: true },
+  { id: 'Z2', name: 'Zone 2 - التراس المفتوح (Garden)', nameEn: 'Zone 2 - Open Terrace (Garden)', capacity: 30, minDeposit: 750, packages: [50,80,120,100], active: true },
+  { id: 'Z3', name: 'Zone 3 - قاعة الاجتماعات', nameEn: 'Zone 3 - Meeting Hall', capacity: 25, minDeposit: 800, packages: [50,80,120,100], active: true },
+  { id: 'Z4', name: 'Zone 4 - ركن العائلات', nameEn: 'Zone 4 - Family Corner', capacity: 20, minDeposit: 500, packages: [50,80,120,100], active: true }
 ];
 
 let zones = JSON.parse(localStorage.getItem('rest_zones_v2')) || JSON.parse(localStorage.getItem('rest_zones')) || defaultZones;
 // normalize
-zones = zones.map(z => ({ ...z, nameEn: z.nameEn || z.name }));
+zones = zones.map(z => ({
+  ...z,
+  nameEn: z.nameEn || z.name,
+  packages: Array.isArray(z.packages) && z.packages.length === 4
+    ? z.packages.map(n => Number(n) || 0)
+    : [50,80,120,100]
+}));
 let bookings = JSON.parse(localStorage.getItem('rest_bookings_v2')) || JSON.parse(localStorage.getItem('rest_bookings')) || [];
 let accountNumber = localStorage.getItem('rest_account_v2') || localStorage.getItem('rest_account') || '01000000000 - InstaPay: restaurant@instapay';
 // الرابط العام للتطبيق المستخدم في دعوات واتساب (بدونه يُستخدم رابط localhost الحالي)
@@ -3826,6 +3858,7 @@ function saveDraft(auto = false) {
     start: document.getElementById('b-start').value,
     end: document.getElementById('b-end').value,
     deposit: document.getElementById('b-deposit').value,
+    packageIndex: Number(document.getElementById('b-package')?.value || 0),
     zoneId: selectedZoneId,
     payment: selectedPayment,
     receipt: currentReceiptBase64
@@ -3856,6 +3889,7 @@ function loadDraft() {
   document.getElementById('b-end').value = d.end || '22:00';
   document.getElementById('b-deposit').value = d.deposit || 500;
   selectedZoneId = d.zoneId || null;
+  renderPackageOptions(d.packageIndex || 0);
   selectedPayment = d.payment || 'كاش';
   document.getElementById('b-payment').value = selectedPayment;
   document.querySelectorAll('.pay-card').forEach(c => c.classList.toggle('selected', c.getAttribute('data-pay') === selectedPayment));
@@ -4670,7 +4704,7 @@ function renderCharts() {
     bookings.forEach(b => {
       if (!b.date || b.cancelled) return;
       const dow = new Date(b.date + 'T00:00:00').getDay();
-      sums[dow] += b.deposit || 0;
+      sums[dow] += (b.deposit || 0) + (b.totalFees || 0);
     });
     const rawMax = Math.max(1, ...sums);
     const max = rawMax <= 4 ? rawMax + 1 : rawMax; // مقياس ذكي لما المبالغ صغيرة
@@ -4845,6 +4879,10 @@ function buildBookingsTable(list, compact = false) {
               : `<span class="badge ${b.verified ? 'badge-success' : 'badge-pending'}">${b.verified ? t('filter.verified') : t('filter.pending')}</span>`}
         </td>
         <td>
+          <div style="font-weight:700; color:var(--brand);">${formatMoney(b.totalFees || 0)} ${cur()}</div>
+          <small style="color:var(--muted);">${t('field.package')}: ${typeof b.packageIndex === 'number' ? t('pkg.' + (b.packageIndex + 1)) : '—'}</small>
+        </td>
+        <td>
           <div style="display:flex; gap:4px;">
             <button class="btn btn-ghost btn-sm" onclick="openBookingDetails('${jsSafe(b.id)}')" title="Details"><i class="fa-solid fa-eye"></i></button>
             <button class="btn btn-ghost btn-sm" onclick="editBooking('${jsSafe(b.id)}')" title="Edit"><i class="fa-solid fa-pen-to-square" style="color:var(--info);"></i></button>
@@ -4868,6 +4906,7 @@ function buildBookingsTable(list, compact = false) {
             <th>${t('col.zone')}</th>
             <th>${t('col.guests')}</th>
             <th>${t('col.deposit')}</th>
+            <th>${t('field.fees')}</th>
             <th>${t('col.actions')}</th>
           </tr>
         </thead>
@@ -5061,6 +5100,10 @@ function openZoneEdit(id) {
   document.getElementById('ze-name-en').value = z.nameEn || '';
   document.getElementById('ze-capacity').value = z.capacity;
   document.getElementById('ze-deposit').value = z.minDeposit;
+  (z.packages || [50,80,120,100]).forEach((p, i) => {
+    const el = document.getElementById('ze-pkg-' + i);
+    if (el) el.value = p;
+  });
   document.getElementById('ze-active').classList.toggle('on', z.active !== false);
   document.getElementById('zone-edit-modal').classList.add('open');
 }
@@ -5076,6 +5119,10 @@ async function saveZoneEdit() {
   z.nameEn = (document.getElementById('ze-name-en').value || '').trim() || z.name;
   z.capacity = capacity;
   z.minDeposit = deposit >= 0 ? deposit : 0;
+  z.packages = [0,1,2,3].map(i => {
+    const el = document.getElementById('ze-pkg-' + i);
+    return Math.max(0, Number(el ? el.value : 0) || 0);
+  });
   z.active = document.getElementById('ze-active').classList.contains('on');
   if (CLOUD.enabled && CLOUD.client) {
     const { error } = await CLOUD.client.from('zones').upsert(zToDb(z));
@@ -5122,6 +5169,31 @@ function selectZone(id) {
   document.querySelectorAll('.zone-card').forEach(c => c.classList.remove('selected'));
   // re-render to reflect
   renderZoneCards();
+  renderPackageOptions();
+}
+
+// أسعار الباقات للمنطقة المختارة
+function packagePrices() {
+  const z = zones.find(x => x.id === selectedZoneId);
+  return (z && Array.isArray(z.packages) && z.packages.length === 4) ? z.packages : [50,80,120,100];
+}
+function renderPackageOptions(keepIndex) {
+  const sel = document.getElementById('b-package');
+  if (!sel) return;
+  const idx = keepIndex != null ? keepIndex : (Number(sel.value) || 0);
+  sel.innerHTML = packagePrices().map((p, i) => `<option value="${i}">${t('pkg.' + (i + 1))} — ${Number(p).toLocaleString()} ${cur()}</option>`).join('');
+  sel.value = String(Math.max(0, Math.min(3, idx)));
+  updateFees();
+}
+function updateFees() {
+  const el = document.getElementById('fees-summary');
+  if (!el) return;
+  const idx = Number(document.getElementById('b-package')?.value || 0);
+  const per = Number(packagePrices()[idx]) || 0;
+  const guests = Number(document.getElementById('b-guests')?.value) || 0;
+  const dep = Number(document.getElementById('b-deposit')?.value) || 0;
+  const fees = guests * per;
+  el.innerHTML = `${guests} × ${per.toLocaleString()} ${cur()} = <b style="color:var(--brand)">${fees.toLocaleString()} ${cur()}</b> &nbsp;·&nbsp; ${t('field.totalDue') || 'Total'}: <b>${(fees + dep).toLocaleString()} ${cur()}</b>`;
 }
 
 // منع اختيار تاريخ ماضٍ في الحجز
@@ -5365,9 +5437,12 @@ function saveBooking() {
   }
 
   const existing = editingBookingId ? bookings.find(x => x.id === editingBookingId) : null;
+  const packageIndex = Number(document.getElementById('b-package')?.value || 0);
+  const feePerPerson = Number(packagePrices()[packageIndex]) || 0;
   const bookingData = {
     date, name, phone, whatsapp, type,
     zoneId: selectedZoneId, guests, start, end, deposit, payment,
+    packageIndex, feePerPerson, totalFees: guests * feePerPerson,
     receipt: currentReceiptBase64 || (existing ? existing.receipt : ''),
     verified: payment !== 'تحويل لحظي' ? true : (existing ? existing.verified : false)
   };
@@ -5412,6 +5487,7 @@ function saveBooking() {
   document.getElementById('receipt-img-preview').style.display = 'none';
   currentReceiptBase64 = '';
   selectedZoneId = null;
+  renderPackageOptions(0);
   currentStep = 1;
   updateStepper();
   generateBookingId();
@@ -5576,7 +5652,9 @@ async function submitGuestRegistration() {
 }
 
 function showGuestTicket(guest, data) {
-  const zone = zones.find(z => z.id === (data.z || (bookings.find(b=>b.id===guest.eventId)||{}).zoneId)) || { name: '', nameEn: '' };
+  const linkedBooking = bookings.find(b => b.id === guest.eventId);
+  const guestFee = linkedBooking ? (Number(linkedBooking.feePerPerson) || 0) : 0;
+  const zone = zones.find(z => z.id === (data.z || (linkedBooking || {}).zoneId)) || { name: '', nameEn: '' };
   const container = document.getElementById('guest-ticket-content');
   container.innerHTML = `
     <div class="ticket-header">
@@ -5590,6 +5668,7 @@ function showGuestTicket(guest, data) {
       <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.event'))}</div><div class="v">${escapeHtml(guest.eventName || '—')}</div></div>
       <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.date'))}</div><div class="v num">${escapeHtml(data.d || '—')}</div></div>
       <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.time'))}</div><div class="v num">${escapeHtml((data.s||'') + ' – ' + (data.en||''))}</div></div>
+      <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.fee'))}</div><div class="v num">${formatMoney(guestFee)} ${cur()}</div></div>
       <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.zone'))}</div><div class="v">${escapeHtml(zoneName(zone))}</div></div>
     </div>
     <div class="ticket-qr">
@@ -5601,7 +5680,7 @@ function showGuestTicket(guest, data) {
   qrEl.innerHTML = '';
   new QRCode(qrEl, { text: 'GST:' + guest.id, width: 180, height: 180 });
   // دائماً بالإنجليزية
-  const msg = `🎫 My entry ticket — ${guest.eventName}\nName: ${guest.name}\nGuest ID: ${guest.id}\n📅 ${data.d||''} (${data.s||''}–${data.en||''})\n\nShow the QR at the door.`;
+  const msg = `🎫 My entry ticket — ${guest.eventName}\nName: ${guest.name}\nGuest ID: ${guest.id}\n📅 ${data.d||''} (${data.s||''}–${data.en||''})\nEntry fee: ${guestFee} ${cur()}\n\nShow the QR at the door.`;
   document.getElementById('guest-ticket-wa-btn').href = `https://wa.me/${phoneForWa(guest.phone)}?text=${encodeURIComponent(msg)}`;
   closeModal('guest-register-modal');
   document.getElementById('guest-ticket-modal').classList.add('open');
@@ -5791,6 +5870,7 @@ function editBooking(id) {
   document.getElementById('b-end').value = b.end || '22:00';
   document.getElementById('b-deposit').value = b.deposit || 0;
   selectedZoneId = b.zoneId;
+  renderPackageOptions(b.packageIndex != null ? b.packageIndex : 0);
   selectedPayment = b.payment || 'كاش';
   document.getElementById('b-payment').value = selectedPayment;
   // payment cards highlight
@@ -7389,6 +7469,8 @@ function bFromDb(r) {
     type: sStr(r.type), zoneId: sStr(r.zone_id), guests: Number(r.guests) || 1,
     checkedIn: Number(r.checked_in) || 0, start: sStr(r.start_time).slice(0, 5), end: sStr(r.end_time).slice(0, 5),
     deposit: Number(r.deposit) || 0, payment: sStr(r.payment), receipt: sStr(r.receipt), verified: !!r.verified,
+    packageIndex: r.package_index == null ? 0 : Number(r.package_index),
+    feePerPerson: Number(r.fee_per_person) || 0, totalFees: Number(r.total_fees) || 0,
     cancelled: !!r.cancelled, cancelReason: sStr(r.cancel_reason), cancelledAt: sStr(r.cancelled_at),
     createdAt: sStr(r.created_at)
   };
@@ -7399,6 +7481,8 @@ function bToDb(b) {
     type: b.type || '', zone_id: b.zoneId || null, guests: Number(b.guests) || 1,
     checked_in: Number(b.checkedIn) || 0, start_time: b.start || '18:00', end_time: b.end || '22:00',
     deposit: Number(b.deposit) || 0, payment: b.payment || '', receipt: b.receipt || '', verified: !!b.verified,
+    package_index: Number(b.packageIndex) || 0, fee_per_person: Number(b.feePerPerson) || 0,
+    total_fees: Number(b.totalFees) || 0,
     cancelled: !!b.cancelled, cancel_reason: b.cancelReason || null, cancelled_at: b.cancelledAt || null
   };
 }
@@ -7419,13 +7503,16 @@ function gToDb(g) {
 function zFromDb(r) {
   return {
     id: r.id, name: sStr(r.name), nameEn: sStr(r.name_en) || sStr(r.name),
-    capacity: Number(r.capacity) || 20, minDeposit: Number(r.min_deposit) || 0, active: r.active !== false
+    capacity: Number(r.capacity) || 20, minDeposit: Number(r.min_deposit) || 0, active: r.active !== false,
+    packages: Array.isArray(r.packages) && r.packages.length === 4
+      ? r.packages.map(n => Number(n) || 0) : [50,80,120,100]
   };
 }
 function zToDb(z) {
   return {
     id: z.id, name: z.name, name_en: z.nameEn || z.name, capacity: Number(z.capacity) || 20,
-    min_deposit: Number(z.minDeposit) || 0, active: z.active !== false
+    min_deposit: Number(z.minDeposit) || 0, active: z.active !== false,
+    packages: Array.isArray(z.packages) && z.packages.length === 4 ? z.packages : [50,80,120,100]
   };
 }
 
@@ -7578,6 +7665,8 @@ async function cloudRestore() {
   await cloudLoad();
   return currentUser;
 }
+// تهيئة حقل الباقة في نموذج الحجز
+renderPackageOptions();
 </script>
 
 </body>
