@@ -1887,13 +1887,6 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                   </div>
                 </div>
                 <div class="form-group">
-                  <label data-i18n="field.guests">عدد الأفراد <span class="req">*</span></label>
-                  <div class="has-icon"><i class="fa-solid fa-users field-icon"></i>
-                    <input class="input" type="number" id="b-guests" min="1" value="10" required onchange="checkZoneCapacity(); updateFees();" oninput="updateFees()">
-                  </div>
-                  <div class="helper" id="capacity-warning"></div>
-                </div>
-                <div class="form-group">
                   <label data-i18n="field.start">وقت الوصول <span class="req">*</span></label>
                   <div class="has-icon"><i class="fa-solid fa-clock field-icon"></i>
                     <input class="input" type="time" id="b-start" value="18:00" required>
@@ -1903,6 +1896,19 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                   <label data-i18n="field.end">وقت المغادرة <span class="req">*</span></label>
                   <div class="has-icon"><i class="fa-solid fa-clock-rotate-left field-icon"></i>
                     <input class="input" type="time" id="b-end" value="22:00" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label data-i18n="field.guests">عدد الأفراد <span class="req">*</span></label>
+                  <div class="has-icon"><i class="fa-solid fa-users field-icon"></i>
+                    <input class="input" type="number" id="b-guests" min="1" value="10" required onchange="checkZoneCapacity(); updateFees();" oninput="updateFees()">
+                  </div>
+                  <div class="helper" id="capacity-warning"></div>
+                </div>
+                <div class="form-group">
+                  <label data-i18n="field.package">الباقة (رسوم لكل ضيف)</label>
+                  <div class="has-icon"><i class="fa-solid fa-crown field-icon"></i>
+                    <select class="input" id="b-package" onchange="updateFees()"></select>
                   </div>
                 </div>
               </div>
@@ -1920,9 +1926,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 </div>
               </div>
               <div class="form-group full" style="margin-bottom:16px;">
-                <label data-i18n="field.package">الباقة (رسوم لكل ضيف)</label>
-                <select class="input" id="b-package" onchange="updateFees()"></select>
-                <div id="fees-summary" style="margin-top:8px; font-size:.8rem; color:var(--muted); text-align:center;"></div>
+                <div id="fees-summary" style="font-size:.8rem; color:var(--muted); text-align:center;"></div>
               </div>
               <div class="form-group full" style="margin-bottom:16px;">
                 <label data-i18n="field.payment">طريقة الدفع <span class="req">*</span></label>
