@@ -6957,14 +6957,23 @@ function urlBase64ToUint8Array(base64String) {
   return out;
 }
 async function subscribeWebPush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('Push not supported');
-  const reg = await navigator.serviceWorker.ready;
-  let sub = await reg.pushManager.getSubscription();
+  if (!('serviceWorker' in navigator)) throw new Error('Service Worker unsupported');
+  if (!('PushManager' in window)) throw new Error('PushManager unsupported');
+  let reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) {
+    try { reg = await navigator.serviceWorker.register('./sw.js'); }
+    catch (e) { throw new Error('SW register: ' + (e.message || e)); }
+  }
+  let sub;
+  try { sub = await reg.pushManager.getSubscription(); }
+  catch (e) { throw new Error('getSubscription: ' + (e.message || e)); }
   if (!sub) {
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-    });
+    try {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    } catch (e) { throw new Error('subscribe: ' + (e.message || e)); }
   }
   pushSubscription = sub;
   try { localStorage.setItem('rest_push_endpoint', sub.endpoint); } catch (e) {}
@@ -6976,7 +6985,7 @@ async function subscribeWebPush() {
       endpoint: sub.endpoint,
       subscription: sub.toJSON()
     }, { onConflict: 'endpoint' });
-    if (error) throw error;
+    if (error) throw new Error('DB: ' + error.message);
   }
   return sub;
 }
@@ -7013,7 +7022,8 @@ async function requestBrowserNotify() {
       if (label) label.textContent = (t('notif.browserOn') || 'Enabled') + ' ✓';
       toast(currentLang === 'ar' ? 'الإشعارات مفعّلة حتى لو التطبيق مقفول' : 'Notifications enabled even when closed', 'success');
     } catch (e) {
-      if (label) label.textContent = currentLang === 'ar' ? 'تعذّر تفعيل الإشعارات — جرّب تاني' : 'Could not enable — try again';
+      const msg = (e && e.message) ? e.message : String(e);
+      if (label) label.textContent = (currentLang === 'ar' ? 'فشل: ' : 'Failed: ') + msg;
     }
   } catch (e) { if (label) label.textContent = currentLang === 'ar' ? 'تعذّر طلب الإذن' : 'Could not request permission'; }
 }
