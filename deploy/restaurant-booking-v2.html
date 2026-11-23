@@ -484,6 +484,14 @@ body.big-targets .switch::after { width: 24px; height: 24px; }
 .sound-row .sound-icon.green { background: var(--success-soft); color: var(--success); }
 .sound-row .sound-icon.blue { background: var(--info-soft); color: var(--info); }
 .sound-row .sound-info { flex: 1; min-width: 0; }
+.notif-status { display: flex; align-items: center; gap: 6px; font-size: .72rem; font-weight: 800; margin-top: 5px; }
+.notif-status .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; }
+.notif-status.on { color: var(--success); }
+.notif-status.on .dot { background: var(--success); }
+.notif-status.off { color: var(--danger); }
+.notif-status.off .dot { background: var(--danger); }
+#notif-row.state-on { background: #E6F4EE !important; border-color: #b7e3cf !important; }
+#notif-row.state-off { background: #FBE9E7 !important; border-color: #f3c4bd !important; }
 .sound-row .sound-info b { display: block; font-size: .9rem; font-weight: 700; }
 .sound-row .sound-info span { font-size: .75rem; color: var(--muted); }
 .sound-row .sound-actions { display: flex; align-items: center; gap: 8px; }
@@ -2282,11 +2290,12 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           </div>
 
           <!-- Browser notification permission -->
-          <div class="sound-row" style="margin-bottom:12px; background:var(--primary-soft); border-color:transparent;">
+          <div class="sound-row" id="notif-row" style="margin-bottom:12px; background:var(--primary-soft); border-color:transparent;">
             <div class="sound-icon"><i class="fa-regular fa-bell"></i></div>
             <div class="sound-info">
               <b data-i18n="notif.browserTitle">إشعارات المتصفح</b>
               <span id="notif-perm-label" data-i18n="notif.browserHint">فعّلها لاستقبال الإشعارات حتى لو التطبيق مقفول</span>
+              <div class="notif-status off" id="notif-status"><i class="dot"></i><span id="notif-status-text">الإشعارات متوقفة</span></div>
             </div>
             <div class="sound-actions">
               <button class="btn btn-outline btn-sm" onclick="requestBrowserNotify()" data-i18n="notif.browserBtn">تفعيل</button>
@@ -3046,6 +3055,8 @@ const I18N = {
     'notif.browserHint': 'فعّلها لاستقبال الإشعارات حتى لو التطبيق مقفول',
     'notif.browserBtn': 'تفعيل',
     'notif.disable': 'إيقاف',
+    'notif.statusOn': 'الإشعارات مفعّلة',
+    'notif.statusOff': 'الإشعارات متوقفة',
     'notif.restored': 'تمت استعادة الحجز',
     'notif.browserOn': 'مفعّلة ✓',
     'notif.clear': 'مسح',
@@ -3438,6 +3449,8 @@ const I18N = {
     'notif.browserHint': 'Enable to receive alerts even when the app is closed',
     'notif.browserBtn': 'Enable',
     'notif.disable': 'Disable',
+    'notif.statusOn': 'Notifications enabled',
+    'notif.statusOff': 'Notifications disabled',
     'notif.restored': 'Booking restored',
     'notif.browserOn': 'Enabled ✓',
     'notif.clear': 'Clear',
@@ -3713,7 +3726,7 @@ function setLang(lang) {
   if (activeTab === 'door') { updateQuickDoorSelect(); renderRecentCheckins(); }
   if (activeTab === 'new-booking') { renderZoneCards(); renderPackageOptions(); refreshDateDisplay(); renderDatePopup(); resetCustomerSearch(); }
   if (activeTab === 'dashboard') renderDashboard();
-  if (activeTab === 'settings') { const el = document.getElementById('set-account-number'); if (el) el.value = accountNumber; const pu = document.getElementById('set-public-url'); if (pu) pu.value = publicAppUrl; }
+  if (activeTab === 'settings') { const el = document.getElementById('set-account-number'); if (el) el.value = accountNumber; const pu = document.getElementById('set-public-url'); if (pu) pu.value = publicAppUrl; const ns = document.getElementById('notif-status'); if (ns) setNotifStatus(ns.classList.contains('on')); }
   applyI18n();
   toast(t('toast.saved'), 'success');
 }
@@ -4379,6 +4392,7 @@ function showTab(tabId, btn) {
     if (nl && 'Notification' in window && Notification.permission === 'granted') {
       nl.textContent = pushSubscription ? ((t('notif.browserOn') || 'Enabled') + ' ✓') : (currentLang === 'ar' ? 'اسمح بالدفع من الزر' : 'Enable push via the button');
     }
+    setNotifStatus(!!(pushSubscription || (function(){try{return localStorage.getItem('rest_push_endpoint');}catch(e){return null;}})()));
   }
   if (tabId !== 'door') stopQrScan();
   applyI18n();
@@ -7004,9 +7018,20 @@ async function disableWebPush() {
   } catch (e) {}
   pushSubscription = null;
   try { localStorage.removeItem('rest_push_endpoint'); } catch (e) {}
+  setNotifStatus(false);
   const label = document.getElementById('notif-perm-label');
   if (label) label.textContent = currentLang === 'ar' ? 'الإشعارات متوقفة' : 'Notifications off';
   toast(currentLang === 'ar' ? 'تم إيقاف الإشعارات' : 'Notifications disabled', 'info');
+}
+function setNotifStatus(on) {
+  const s = document.getElementById('notif-status');
+  const txt = document.getElementById('notif-status-text');
+  const row = document.getElementById('notif-row');
+  if (s) s.className = 'notif-status ' + (on ? 'on' : 'off');
+  if (txt) txt.textContent = on
+    ? (t('notif.statusOn') || 'الإشعارات مفعّلة')
+    : (t('notif.statusOff') || 'الإشعارات متوقفة');
+  if (row) { row.classList.remove('state-on','state-off'); row.classList.add(on ? 'state-on' : 'state-off'); }
 }
 async function requestBrowserNotify() {
   const label = document.getElementById('notif-perm-label');
@@ -7021,6 +7046,7 @@ async function requestBrowserNotify() {
     try {
       await subscribeWebPush();
       if (label) label.textContent = (t('notif.browserOn') || 'Enabled') + ' ✓';
+      setNotifStatus(true);
       toast(currentLang === 'ar' ? 'الإشعارات مفعّلة حتى لو التطبيق مقفول' : 'Notifications enabled even when closed', 'success');
     } catch (e) {
       const msg = (e && e.message) ? e.message : String(e);
@@ -7031,6 +7057,7 @@ async function requestBrowserNotify() {
 function bookingPushData(b) {
   const z = zones.find(x => x.id === b.zoneId) || {};
   return {
+    id: b.id || '',
     name: b.name || '', date: b.date || '', time: b.start || '',
     zoneAr: z.name || '', zoneEn: z.nameEn || '', eventType: b.type || '',
     packageName: (z.packageNames && z.packageNames[b.packageIndex]) || '',
@@ -7039,19 +7066,31 @@ function bookingPushData(b) {
 }
 async function sendBookingPush(type, data) {
   try {
-    if (!pushSubscription && 'serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.ready;
-      pushSubscription = await reg.pushManager.getSubscription();
-    }
-    if (!pushSubscription || !CLOUD.enabled || !CLOUD.client) return;
+    // الإرسال يعتمد على جلسة Supabase فقط، لا على اشتراك الجهاز الذي أنشأ الحجز.
+    // جهاز الكمبيوتر قد لا يكون مشتركاً أصلاً ومع ذلك يجب أن يستلم الموبايل الإشعار.
+    if (!CLOUD.enabled || !CLOUD.client) return;
     const { data: sess } = await CLOUD.client.auth.getSession();
-    if (!sess || !sess.session) return;
-    await fetch(CLOUD.URL + '/functions/v1/send-push', {
+    if (!sess || !sess.session) { console.warn('send-push: no Supabase session'); return; }
+    const res = await fetch(CLOUD.URL + '/functions/v1/send-push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sess.session.access_token },
-      body: JSON.stringify({ type, ...data, url: '#bookings', tag: 'gatz-' + type, excludeEndpoint: pushSubscription.endpoint })
+      body: JSON.stringify({
+        type, ...data, url: '#bookings',
+        tag: 'gatz-' + type + '-' + (data.id || Date.now())
+      })
     });
-  } catch (e) {}
+    let result = null;
+    try { result = await res.json(); } catch (e) {}
+    if (!res.ok || (result && result.error)) {
+      console.warn('send-push failed:', res.status, result);
+      toast(currentLang === 'ar' ? 'تعذّر إرسال إشعار الموبايل' : 'Could not send mobile notification', 'error');
+    } else if (result && result.sent === 0) {
+      console.warn('send-push: no active subscriptions', result);
+    }
+    return result;
+  } catch (e) {
+    console.warn('send-push error:', e);
+  }
 }
 function tryNativeNotify(title, body) {
   try {
