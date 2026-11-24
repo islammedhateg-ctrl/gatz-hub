@@ -6801,6 +6801,8 @@ function restoreBooking(id) {
   delete b.cancelReason;
   delete b.cancelNote;
   saveData();
+  addNotification('restored', t('notif.restored'), `${b.name} — ${b.id}`, b.id);
+  sendBookingPush('restored', bookingPushData(b));
   renderAll(); renderBookings();
   toast(t('booking.restored'), 'success');
 }
@@ -7052,7 +7054,7 @@ function addNotification(type, title, body, bookingId) {
   if (bookingId && typeof markLocalNotify === 'function') markLocalNotify(bookingId);
   const n = {
     id: 'N-' + Date.now(),
-    type: type, // 'new' | 'cancelled' | 'info'
+    type: type, // 'new' | 'updated' | 'cancelled' | 'restored' | 'info'
     title: title,
     body: body,
     bookingId: bookingId || null,
@@ -7147,7 +7149,7 @@ function renderNotifications() {
     return;
   }
   list.innerHTML = notifications.map(n => {
-    const icon = n.type === 'new' ? 'fa-calendar-plus' : (n.type === 'cancelled' ? 'fa-calendar-xmark' : 'fa-circle-info');
+    const icon = n.type === 'new' ? 'fa-calendar-plus' : (n.type === 'cancelled' ? 'fa-calendar-xmark' : (n.type === 'restored' ? 'fa-rotate-left' : 'fa-circle-info'));
     const color = n.type === 'new' ? 'var(--success)' : (n.type === 'cancelled' ? 'var(--danger)' : 'var(--info)');
     const time = new Date(n.timestamp).toLocaleTimeString(currentLang === 'ar' ? 'ar-EG-u-nu-latn' : 'en-US', { hour: '2-digit', minute: '2-digit' });
     return `
@@ -8318,6 +8320,8 @@ async function cloudLoad() {
           cloudNotifyLocal('new', t('notif.newBooking'), `${b.name} — ${b.id}`, b.id);
         } else if (!was(b.id).cancelled && b.cancelled) {
           cloudNotifyLocal('cancelled', t('notif.cancelled'), `${b.name} — ${b.id}`, b.id);
+        } else if (was(b.id).cancelled && !b.cancelled) {
+          cloudNotifyLocal('restored', t('notif.restored'), `${b.name} — ${b.id}`, b.id);
         }
       });
       nextG.forEach(g => {
