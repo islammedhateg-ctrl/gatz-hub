@@ -818,9 +818,28 @@ select.input option:checked { background: var(--primary-soft); color: var(--prim
 }
 @keyframes pickerPop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 .cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-.cal-title { text-align: center; flex: 1; }
-.cal-title b { display: block; font-size: .92rem; }
-.cal-title span { font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cal-title { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.cal-title b { font-size: .95rem; font-weight: 800; }
+.year-btn {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 5px;
+  border: 0; background: var(--primary-soft); color: var(--primary); border-radius: 99px;
+  padding: 3px 9px; font-family: inherit; font-size: .72rem; font-weight: 800; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.year-btn i { font-size: .62rem; }
+.year-list {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px;
+  max-height: 190px; overflow-y: auto; padding: 8px; margin-bottom: 10px;
+  background: var(--surface-2); border-radius: 12px; border: 1px solid var(--border);
+}
+.year-item {
+  border: 1px solid var(--border-2); background: var(--surface); color: var(--text);
+  border-radius: 9px; padding: 7px; font-family: inherit; font-size: .78rem; font-weight: 700; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.year-item:hover { border-color: var(--primary); color: var(--primary); }
+.year-item.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.cal-navs { display: flex; gap: 6px; flex: none; }
 .cal-nav {
   width: 34px; height: 34px; flex: none; border: 1px solid var(--border-2); background: var(--surface);
   border-radius: 10px; cursor: pointer; font-size: 1.1rem; color: var(--text); font-family: inherit;
@@ -848,6 +867,11 @@ select.input option:checked { background: var(--primary-soft); color: var(--prim
 }
 .mini-btn:hover { border-color: var(--primary); color: var(--primary); }
 .mini-btn.on { background: var(--primary-soft); border-color: var(--primary-soft-2); color: var(--primary); }
+.cancel-btn {
+  background: var(--surface); color: var(--muted); border: 1px solid var(--border-2); border-radius: 9px;
+  padding: 7px 13px; font-family: inherit; font-size: .76rem; font-weight: 800; cursor: pointer;
+}
+.cancel-btn:hover { border-color: var(--primary); color: var(--primary); }
 .done-btn {
   margin-inline-start: auto; background: var(--primary); color: #fff; border: 0; border-radius: 9px;
   padding: 7px 15px; font-family: inherit; font-size: .76rem; font-weight: 800; cursor: pointer;
@@ -1963,16 +1987,22 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                     <input type="hidden" id="b-date" min="" data-required="1" onchange="checkBookingDate(); refreshQuickChips();">
                     <div class="picker-panel" id="date-picker" style="display:none;">
                       <div class="cal-head">
-                        <button type="button" class="cal-nav" onclick="shiftBookingCalendarMonth(-1)" aria-label="Previous month">‹</button>
-                        <div class="cal-title"><b id="cal-month"></b><span id="cal-year"></span></div>
-                        <button type="button" class="cal-nav" onclick="shiftBookingCalendarMonth(1)" aria-label="Next month">›</button>
+                        <div class="cal-title">
+                          <b id="cal-selected">—</b>
+                          <button type="button" class="year-btn" onclick="toggleYearList()"><span id="cal-year"></span> <i class="fa-solid fa-chevron-down"></i></button>
+                        </div>
+                        <div class="cal-navs">
+                          <button type="button" class="cal-nav" onclick="shiftBookingCalendarMonth(-1)" aria-label="Previous month">‹</button>
+                          <button type="button" class="cal-nav" onclick="shiftBookingCalendarMonth(1)" aria-label="Next month">›</button>
+                        </div>
                       </div>
+                      <div class="year-list" id="year-list" style="display:none;"></div>
                       <div class="cal-week" id="cal-weekdays"></div>
                       <div class="cal-grid" id="cal-grid"></div>
                       <div class="cal-foot">
                         <button type="button" class="mini-btn" data-day="today" data-i18n="quick.today" onclick="setQuickDate('today')">اليوم</button>
                         <button type="button" class="mini-btn" data-day="tomorrow" data-i18n="quick.tomorrow" onclick="setQuickDate('tomorrow')">بكرة</button>
-                        <button type="button" class="mini-btn" data-day="weekend" data-i18n="quick.weekend" onclick="setQuickDate('weekend')">نهاية الأسبوع</button>
+                        <button type="button" class="cancel-btn" data-i18n="picker.cancel" onclick="closePickers()">إلغاء</button>
                         <button type="button" class="done-btn" data-i18n="picker.done" onclick="closePickers()">تم</button>
                       </div>
                     </div>
@@ -2014,6 +2044,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                         <button type="button" class="mini-btn" data-time="19:00" onclick="setQuickTime('19:00')">١٩:٠٠</button>
                         <button type="button" class="mini-btn" data-time="20:00" onclick="setQuickTime('20:00')">٢٠:٠٠</button>
                         <button type="button" class="mini-btn" data-time="21:00" onclick="setQuickTime('21:00')">٢١:٠٠</button>
+                        <button type="button" class="cancel-btn" data-i18n="picker.cancel" onclick="closePickers()">إلغاء</button>
                         <button type="button" class="done-btn" data-i18n="picker.done" onclick="closePickers()">تم</button>
                       </div>
                     </div>
@@ -3083,6 +3114,7 @@ const I18N = {
     'quick.weekend': 'نهاية الأسبوع',
     'quick.custom': 'تخصيص',
     'picker.done': 'تم',
+    'picker.cancel': 'إلغاء',
     'picker.morning': 'صباحاً',
     'picker.evening': 'مساءً',
     'picker.weekday': 'يوم عمل',
@@ -3486,6 +3518,7 @@ const I18N = {
     'quick.weekend': 'Weekend',
     'quick.custom': 'Custom',
     'picker.done': 'Done',
+    'picker.cancel': 'Cancel',
     'picker.morning': 'Morning',
     'picker.evening': 'Evening',
     'picker.weekday': 'Weekday',
@@ -5584,6 +5617,17 @@ function formatDateLabel(iso) {
   const months = currentLang === 'ar' ? dateMonthsAR : dateMonthsEN;
   return `${days[dt.getDay()]} ${p.d} ${months[p.m - 1]} ${p.y}`;
 }
+function formatCompactDate(iso) {
+  const p = dateParts(iso);
+  if (!p.y || !p.m || !p.d) return currentLang === 'ar' ? '—' : '—';
+  const dt = new Date(p.y, p.m - 1, p.d);
+  if (currentLang === 'ar') {
+    return `${dateDaysAR[dt.getDay()]}، ${p.d} ${dateMonthsAR[p.m - 1]}`;
+  }
+  const dShort = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const mShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${dShort[dt.getDay()]}, ${mShort[p.m - 1]} ${p.d}`;
+}
 function refreshDateDisplay() {
   const el = document.getElementById('b-date-display');
   const iso = document.getElementById('b-date')?.value || '';
@@ -5617,7 +5661,7 @@ function nextWeekendIso() {
 /* تقويم احترافي — شهر كامل، أيام مشغولة معطّلة، ومؤشر لليوم الحالي */
 let calY = 0, calM = 0, timePeriod = 'evening';
 function closePickers() {
-  ['date-picker','time-picker'].forEach(id => { const p = document.getElementById(id); if (p) p.style.display = 'none'; });
+  ['date-picker','time-picker','year-list'].forEach(id => { const p = document.getElementById(id); if (p) p.style.display = 'none'; });
   ['b-date-trigger','b-time-trigger'].forEach(id => { const b = document.getElementById(id); if (b) b.classList.remove('open'); });
 }
 function resetBookingCalendarView() {
@@ -5627,32 +5671,53 @@ function resetBookingCalendarView() {
   else { calY = p.y; calM = p.m; }
 }
 function renderBookingCalendar() {
-  const monthEl = document.getElementById('cal-month');
+  const headEl = document.getElementById('cal-selected');
   const yearEl = document.getElementById('cal-year');
   const weekEl = document.getElementById('cal-weekdays');
   const grid = document.getElementById('cal-grid');
-  if (!monthEl || !yearEl || !weekEl || !grid) return;
-  const months = currentLang === 'ar' ? dateMonthsAR : dateMonthsEN;
+  if (!headEl || !yearEl || !weekEl || !grid) return;
+  const selectedIso = document.getElementById('b-date')?.value || '';
+  headEl.textContent = formatCompactDate(selectedIso || todayStr());
+  yearEl.textContent = calY;
   const weekNames = currentLang === 'ar'
     ? ['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت']
     : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  monthEl.textContent = months[calM - 1];
-  yearEl.textContent = calY;
   weekEl.innerHTML = weekNames.map(d => `<span>${d}</span>`).join('');
   const first = new Date(calY, calM - 1, 1).getDay();
   const last = new Date(calY, calM, 0).getDate();
   const today = todayStr();
-  const selected = document.getElementById('b-date')?.value || '';
   const pad = n => String(n).padStart(2, '0');
   let html = '';
   for (let i = 0; i < first; i++) html += '<span class="cal-day empty"></span>';
   for (let d = 1; d <= last; d++) {
     const iso = `${calY}-${pad(calM)}-${pad(d)}`;
     const dow = new Date(calY, calM - 1, d).getDay();
-    const cls = ['cal-day', dow >= 4 ? 'weekend' : '', iso === selected ? 'selected' : '', iso === today ? 'today' : ''].join(' ');
+    const cls = ['cal-day', dow >= 4 ? 'weekend' : '', iso === selectedIso ? 'selected' : '', iso === today ? 'today' : ''].join(' ');
     html += `<button type="button" class="${cls}" ${iso < today ? 'disabled' : ''} onclick="pickCalendarDate('${iso}')" aria-label="${formatDateLabel(iso)}">${d}</button>`;
   }
   grid.innerHTML = html;
+}
+function renderYearList() {
+  const host = document.getElementById('year-list');
+  if (!host) return;
+  const nowY = dateParts(todayStr()).y;
+  const years = [];
+  for (let y = nowY + 1; y >= nowY - 6; y--) years.push(y);
+  host.innerHTML = years.map(y => `<button type="button" class="year-item ${y === calY ? 'on' : ''}" onclick="chooseBookingYear(${y})">${y}</button>`).join('');
+}
+function toggleYearList() {
+  const host = document.getElementById('year-list');
+  if (!host) return;
+  const show = host.style.display !== 'block';
+  if (show) renderYearList();
+  host.style.display = show ? 'block' : 'none';
+}
+function chooseBookingYear(y) {
+  calY = y;
+  const t = dateParts(todayStr());
+  if (calY === t.y && calM < t.m) calM = t.m;
+  document.getElementById('year-list').style.display = 'none';
+  renderBookingCalendar();
 }
 function shiftBookingCalendarMonth(delta) {
   let y = calY, m = calM + delta;
