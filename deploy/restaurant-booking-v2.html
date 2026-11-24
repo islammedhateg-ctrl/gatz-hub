@@ -765,6 +765,9 @@ select.input option:checked { background: var(--primary-soft); color: var(--prim
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
   box-shadow: var(--shadow-lg); padding: 12px; min-width: 280px;
 }
+.date-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.date-nav span { border: 1px solid var(--border); border-radius: 8px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-weight: 800; }
+.date-nav b { font-size: .8rem; font-variant-numeric: tabular-nums; }
 .date-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .date-chip { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 99px; padding: 6px 11px; font-size: .72rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .date-chip.on { background: var(--primary); border-color: var(--primary); color: #fff; }
@@ -1922,7 +1925,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                   <div class="has-icon" style="position:relative;">
                     <i class="fa-solid fa-calendar-days field-icon"></i>
                     <input class="input" type="text" id="b-date-display" readonly onclick="toggleDatePopup()" placeholder="اختر التاريخ" aria-label="Booking Date">
-                    <input type="hidden" id="b-date" min="" onchange="checkBookingDate()">
+                    <input type="hidden" id="b-date" min="" data-required="1" onchange="checkBookingDate()">
                     <div id="date-popup" class="date-popup" style="display:none;"></div>
                     <div class="helper" id="date-warning" style="color:var(--danger); font-weight:600;"></div>
                   </div>
@@ -1945,7 +1948,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                   <div class="has-icon" style="position:relative;">
                     <i class="fa-solid fa-clock field-icon"></i>
                     <input class="input" type="text" id="b-start-display" readonly onclick="toggleTimePopup('start')" aria-label="Arrival Time">
-                    <input type="hidden" id="b-start" value="18:00">
+                    <input type="hidden" id="b-start" value="18:00" data-required="1">
                     <div class="time-popup" id="time-popup-start" style="display:none;"></div>
                   </div>
                 </div>
@@ -1954,7 +1957,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                   <div class="has-icon" style="position:relative;">
                     <i class="fa-solid fa-clock-rotate-left field-icon"></i>
                     <input class="input" type="text" id="b-end-display" readonly onclick="toggleTimePopup('end')" aria-label="Departure Time">
-                    <input type="hidden" id="b-end" value="22:00">
+                    <input type="hidden" id="b-end" value="22:00" data-required="1">
                     <div class="time-popup" id="time-popup-end" style="display:none;"></div>
                   </div>
                 </div>
@@ -4490,7 +4493,7 @@ window.onload = async () => {
   applyAuthState();
   // seed تجريبي فقط في الوضع المحلي (في السحابة البيانات تأتي من Supabase)
   if (!CLOUD.enabled && bookings.length === 0) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = dateIso();
     bookings.push({
       id: 'BK-1001', date: today, name: 'أحمد محمود', phone: '01012345678', whatsapp: '01012345678',
       type: 'عيد ميلاد', zoneId: 'Z3', guests: 15, checkedIn: 4, start: '19:00', end: '23:00',
@@ -4498,7 +4501,7 @@ window.onload = async () => {
     });
     saveData();
   }
-  const today = new Date().toISOString().split('T')[0];
+  const today = dateIso();
   const bd = document.getElementById('b-date');
   if (bd) { bd.value = today; bd.min = today; }
   updateDateMin(); refreshDateDisplay();
@@ -4689,7 +4692,7 @@ function renderCharts() {
       days.push(d);
     }
     const values = days.map(d => {
-      const ds = d.toISOString().split('T')[0];
+      const ds = dateIso(d);
       return bookings.filter(b => b.date === ds).length;
     });
     // أسماء الأيام كاملة — تُشتق من التاريخ الفعلي (صحيح لأي يوم، مش ثابت)
@@ -4851,7 +4854,7 @@ function renderFinanceSnapshot() {
 function renderTodayOverview() {
   const container = document.getElementById('today-overview');
   if (!container) return;
-  const today = new Date().toISOString().split('T')[0];
+  const today = dateIso();
   const lbl = document.getElementById('today-date-label');
   if (lbl) lbl.textContent = today;
   const todayBookings = bookings.filter(b => b.date === today);
@@ -5263,14 +5266,21 @@ async function saveZoneEdit() {
 /* ============================================================
    ZONE CARDS (selector in form)
    ============================================================ */
+// المتاح فعلياً في المنطقة يوم الحجز (الحجز الملغي والحجز اللي بنعدّله مش محسوبين)
+function zoneRemaining(z, date = document.getElementById('b-date')?.value) {
+  if (!z) return 0;
+  const used = bookings.filter(b => b.zoneId === z.id && b.date === date && !b.cancelled && b.id !== editingBookingId)
+    .reduce((s, b) => s + (b.guests || 0), 0);
+  return z.capacity - used;
+}
 function renderZoneCards() {
   const container = document.getElementById('zone-cards');
   if (!container) return;
   const guests = Number(document.getElementById('b-guests').value) || 0;
+  const date = document.getElementById('b-date').value;
   container.innerHTML = zones.filter(z => z.active).map(z => {
-    const zb = bookings.filter(b => b.zoneId === z.id && b.date === document.getElementById('b-date').value && !b.cancelled);
-    const used = zb.reduce((s,b) => s + (b.guests||0), 0);
-    const remaining = z.capacity - used;
+    const remaining = zoneRemaining(z, date);
+    const used = z.capacity - remaining;
     const over = guests > remaining;
     const selected = selectedZoneId === z.id;
     return `
@@ -5329,11 +5339,11 @@ function updateFees() {
 }
 
 // منع اختيار تاريخ ماضٍ في الحجز — التوقيت المحلي مش UTC (عشان أول الساعات من اليوم ما يتحسبش يوم اللي فات)
-function todayStr() {
-  const d = new Date();
+function dateIso(d = new Date()) {
   const p = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+function todayStr() { return dateIso(); }
 // الحجز المنتهي: تاريخه قبل اليوم (يظل في السجل لكن لا يُسمح بدخوله)
 function isBookingExpired(b) { return !!b && !!b.date && b.date < todayStr(); }
 function expiredLabel() { return currentLang === 'ar' ? 'منتهي' : 'Expired'; }
@@ -5362,12 +5372,12 @@ function dateRemainingDays(mode) {
   const iso = document.getElementById('b-date')?.value || todayStr();
   const p = dateParts(iso);
   if (!p.y || !p.m) return [];
-  const today = dateParts(todayStr());
-  const sameMonth = p.y === today.y && p.m === today.m;
-  const from = sameMonth ? today.d : 1;
+  const todayIso = todayStr();
   const last = new Date(p.y, p.m, 0).getDate();
   const out = [];
-  for (let d = from; d <= last; d++) {
+  for (let d = 1; d <= last; d++) {
+    const key = `${p.y}-${String(p.m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    if (key < todayIso) continue;
     const dow = new Date(p.y, p.m - 1, d).getDay();
     if (mode === 'weekday' && dow > 3) continue; // الأحد→الأربعاء
     if (mode === 'weekend' && dow < 4) continue; // الخميس→السبت
@@ -5407,9 +5417,24 @@ function renderDatePopup() {
       return `<div class="date-day ${key === iso ? 'on' : ''}" onclick="pickDate('${key}')"><b>${d}</b><span>${days[dow].slice(0, 3)}</span></div>`;
     }).join('') || `<div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:.72rem;">${currentLang === 'ar' ? 'لا توجد أيام متبقية' : 'No days left'}</div>`}</div>`;
   }
-  host.innerHTML = `<div class="date-chips">${chips}</div><div class="date-sep"></div>${body}
+  const nav = `<div class="date-nav"><span onclick="changeBookingMonth(-1)" title="${currentLang === 'ar' ? 'الشهر السابق' : 'Previous month'}">‹</span><b>${p.y} / ${String(p.m).padStart(2, '0')}</b><span onclick="changeBookingMonth(1)" title="${currentLang === 'ar' ? 'الشهر التالي' : 'Next month'}">›</span></div>`;
+  host.innerHTML = `${nav}<div class="date-chips">${chips}</div><div class="date-sep"></div>${body}
     <div class="date-more" onclick="dateFullMonth=!dateFullMonth; renderDatePopup()">${dateFullMonth ? (currentLang === 'ar' ? '‹ شريط الأيام' : '‹ Day strip') : (currentLang === 'ar' ? '▤ تقويم كامل (شهر)' : '▤ Full month calendar')}</div>
     <div class="date-foot"><span>${currentLang === 'ar' ? 'الأيام الفاتتة مستبعدة' : 'Past days excluded'}</span><span>${currentLang === 'ar' ? 'المختار' : 'Selected'}: <b>${formatDateLabel(iso)}</b></span></div>`;
+}
+function changeBookingMonth(delta) {
+  const el = document.getElementById('b-date');
+  const p = dateParts(el?.value || todayStr());
+  if (!p.y || !p.m) return;
+  let y = p.y, m = p.m + delta;
+  if (m < 1) { m = 12; y--; }
+  if (m > 12) { m = 1; y++; }
+  const maxD = new Date(y, m, 0).getDate();
+  const d = Math.min(p.d || 1, maxD);
+  if (el) el.value = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  refreshDateDisplay();
+  checkBookingDate();
+  renderDatePopup();
 }
 function setDateMode(m) {
   dateMode = m; dateFullMonth = false;
@@ -5463,13 +5488,14 @@ function renderTimePopup() {
   const mins = Array.from({ length: 12 }, (_, i) => i * 5);
   if (!mins.includes(timeMinute)) mins.push(timeMinute);
   mins.sort((a, b) => a - b);
-  const selectedHour = String(timeHour).padStart(2, '0');
+  // 12 صباحاً = 00:00 — نعرضها 12 في عجلة الساعات مع AM عشان ما تضيعش من التظليل
+  const selectedHour = String((timeHour % 12) || 12).padStart(2, '0');
   const selectedMin = String(timeMinute).padStart(2, '0');
   host.innerHTML = `<div class="time-wheel"><div class="tw-band"></div>
     <div class="tw-col">${hours.map(h => `<div class="${h === selectedHour ? 'on' : ''}" onclick="setTimeHour('${h}')">${h}</div>`).join('')}</div>
     <div class="tw-col">${mins.map(m => { const s = String(m).padStart(2,'0'); return `<div class="${s === selectedMin ? 'on' : ''}" onclick="setTimeMinute('${m}')">${s}</div>`; }).join('')}</div>
     <div class="tw-ampm"><div class="${timePeriod === 'AM' ? 'on' : ''}" onclick="setTimePeriod('AM')">AM</div><div class="${timePeriod === 'PM' ? 'on' : ''}" onclick="setTimePeriod('PM')">PM</div></div>
-  </div><div class="tw-foot"><span>${currentLang === 'ar' ? 'اسحب أو اضغط للاختيار' : 'Scroll or tap to select'}</span><span>${currentLang === 'ar' ? 'المختار' : 'Selected'}: <b>${formatTimeDisplay(document.getElementById('b-' + timeTarget).value)}</b></span></div>`;
+  </div><div class="tw-foot"><span>${currentLang === 'ar' ? 'اسحب أو اضغط للاختيار' : 'Scroll or tap to select'}</span><span>${currentLang === 'ar' ? 'المختار' : 'Selected'}: <b>${formatTimeDisplay(document.getElementById('b-' + timeTarget).value)} (${document.getElementById('b-' + timeTarget).value})</b></span></div>`;
   host.querySelectorAll('.tw-col').forEach(c => {
     const on = c.querySelector('.on');
     if (on) c.scrollTop = Math.max(0, on.offsetTop - c.clientHeight / 2 + 24);
@@ -5510,6 +5536,7 @@ function checkBookingDate() {
   if (!bd) return true;
   updateDateMin();
   const valid = bd.value && bd.value >= todayStr();
+  bd.setAttribute('aria-invalid', valid ? 'false' : 'true');
   if (warn) warn.textContent = (bd.value && !valid) ? (currentLang === 'ar' ? '⚠ لا يمكن حجز تاريخ ماضٍ' : '⚠ Past dates are not allowed') : '';
   renderZoneCards();
   return valid;
@@ -5520,8 +5547,9 @@ function checkZoneCapacity() {
   const z = zones.find(x => x.id === selectedZoneId);
   const guests = Number(document.getElementById('b-guests').value) || 0;
   const warn = document.getElementById('capacity-warning');
-  if (z && guests > z.capacity) {
-    warn.textContent = `⚠ ${guests} > ${z.capacity}`;
+  const remaining = zoneRemaining(z);
+  if (z && guests > remaining) {
+    warn.textContent = `⚠ ${guests} > ${currentLang === 'ar' ? 'المتبقي' : 'available'} ${remaining}`;
     warn.classList.add('error');
   } else {
     warn.textContent = '';
@@ -5642,10 +5670,15 @@ function nextStep() {
   if (currentStep === 2) {
     const date = document.getElementById('b-date').value;
     const guests = Number(document.getElementById('b-guests').value);
-    if (!date || !guests || !selectedZoneId) { toast(t('toast.error'), 'error'); return; }
-    // conflict check
     const start = document.getElementById('b-start').value;
     const end = document.getElementById('b-end').value;
+    if (!date || !guests || !selectedZoneId || !start || !end) { toast(t('toast.error'), 'error'); return; }
+    // المسودة المسترجعة ممكن تكون بتاريخ ماضي — نفحص هنا قبل ما نكمّل
+    if (!checkBookingDate()) {
+      toast(currentLang === 'ar' ? 'لا يمكن حجز تاريخ ماضٍ' : 'Past dates are not allowed', 'error');
+      return;
+    }
+    // conflict check
     const conflict = bookings.find(b => b.zoneId === selectedZoneId && b.date === date && (start < b.end && end > b.start));
     if (conflict) {
       confirmAction('تعارض حجز', `Zone محجوزة لـ ${conflict.name} (${conflict.start}-${conflict.end}). متابعة؟`).then(ok => {
@@ -5706,9 +5739,11 @@ function copyAccount() {
    SAVE BOOKING
    ============================================================ */
 function generateBookingId() {
-  const nextNum = 1001 + bookings.length;
+  const used = new Set(bookings.map(b => String(b.id)));
+  let n = 1001;
+  while (used.has('BK-' + n)) n++;
   const el = document.getElementById('b-id');
-  if (el) el.value = 'BK-' + nextNum;
+  if (el) el.value = 'BK-' + n;
 }
 
 function saveBooking() {
@@ -5730,6 +5765,11 @@ function saveBooking() {
   if (date < todayStr()) {
     toast(currentLang === 'ar' ? 'لا يمكن حجز تاريخ ماضٍ' : 'Past dates are not allowed', 'error');
     checkBookingDate(); return;
+  }
+  const zone = zones.find(x => x.id === selectedZoneId);
+  if (zone && guests > zoneRemaining(zone, date)) {
+    toast(currentLang === 'ar' ? 'المنطقة لا تتسع لهذا العدد' : 'Zone capacity exceeded', 'error');
+    checkZoneCapacity(); return;
   }
   if (payment === 'تحويل لحظي' && !currentReceiptBase64) {
     toast(t('toast.error'), 'error'); return;
@@ -5770,7 +5810,6 @@ function saveBooking() {
     const newBooking = { id: document.getElementById('b-id').value, checkedIn: 0, ...bookingData };
     bookings.unshift(newBooking);
     saveData();
-    const zone = zones.find(z => z.id === selectedZoneId);
     addNotification('new', t('notif.newBooking'), `${newBooking.name} — ${newBooking.id} — ${zone ? zoneName(zone) : selectedZoneId}`, newBooking.id);
     sendBookingPush('new', bookingPushData(newBooking));
     clearDraft(true);
@@ -5779,7 +5818,7 @@ function saveBooking() {
 
   // reset form
   document.getElementById('booking-form').reset();
-  document.getElementById('b-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('b-date').value = todayStr();
   refreshDateDisplay();
   document.getElementById('b-start').value = '18:00';
   document.getElementById('b-end').value = '22:00';
@@ -6016,7 +6055,7 @@ function normalizeEgyptPhone(value) {
 // رقم مصري صحيح: يبدأ 01 وطوله 11 والرقم التالت من شبكات مصر
 function isValidEgyptPhone(value) {
   const p = normalizeEgyptPhone(value);
-  return /^01[0-2,5]\d{8}$/.test(p);
+  return /^01[0-25]\d{8}$/.test(p);
 }
 // تنظيف الحقل أثناء الكتابة (يسمح بالأرقام والمسافات والشرطات فقط)
 function sanitizePhoneInput(el) {
@@ -6624,7 +6663,7 @@ function renderCalendar() {
   let html = '';
   // تمت إزالة اختصارات الأيام من فوق الكروت حسب الطلب
   for (let i = 0; i < startWeekday; i++) html += `<div></div>`;
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayIso = todayStr();
   const zoneCapacity = zones.filter(z=>z.active).reduce((s,z)=>s+z.capacity,0) || 1;
 
   for (let d = fromDay; d <= toDay; d++) {
@@ -6634,8 +6673,8 @@ function renderCalendar() {
     const guests = dayBookings.reduce((s,b)=>s+(b.guests||0),0);
     const occPct = Math.min(100, Math.round(guests/zoneCapacity*100));
     const heat = count === 0 ? 'none' : (occPct < 60 ? 'low' : occPct < 85 ? 'mid' : 'high');
-    const isToday = dateStr === todayStr;
-    const isPast = dateStr < todayStr;
+    const isToday = dateStr === todayIso;
+    const isPast = dateStr < todayIso;
     const isSelected = dateStr === selectedCalendarDate;
     const dow = new Date(y, m, d).getDay();
     const isWeekend = dow === 5 || dow === 6; // الجمعة/السبت
@@ -6669,7 +6708,7 @@ function renderCalendar() {
     </div>`;
   }
   grid.innerHTML = html;
-  if (!selectedCalendarDate) selectedCalendarDate = todayStr;
+  if (!selectedCalendarDate) selectedCalendarDate = todayIso;
   renderCalendarDayInfo(selectedCalendarDate);
 }
 
@@ -6755,7 +6794,7 @@ function changeMonth(delta) {
 
 function goToday() {
   calendarCursor = new Date();
-  selectedCalendarDate = new Date().toISOString().split('T')[0];
+  selectedCalendarDate = todayStr();
   renderCalendar();
 }
 
