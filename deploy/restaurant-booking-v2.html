@@ -5328,8 +5328,12 @@ function updateFees() {
   el.innerHTML = `${guests} × ${per.toLocaleString()} ${cur()} = <b style="color:var(--brand)">${fees.toLocaleString()} ${cur()}</b> &nbsp;·&nbsp; ${t('field.totalDue') || 'Total'}: <b>${(fees + dep).toLocaleString()} ${cur()}</b>`;
 }
 
-// منع اختيار تاريخ ماضٍ في الحجز
-function todayStr() { return new Date().toISOString().split('T')[0]; }
+// منع اختيار تاريخ ماضٍ في الحجز — التوقيت المحلي مش UTC (عشان أول الساعات من اليوم ما يتحسبش يوم اللي فات)
+function todayStr() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 // الحجز المنتهي: تاريخه قبل اليوم (يظل في السجل لكن لا يُسمح بدخوله)
 function isBookingExpired(b) { return !!b && !!b.date && b.date < todayStr(); }
 function expiredLabel() { return currentLang === 'ar' ? 'منتهي' : 'Expired'; }
@@ -7382,6 +7386,38 @@ function playBeep(freq = 880, duration = 140, volume = 0.25) {
   } catch (e) { /* audio not available */ }
 }
 
+/* قاعدة بوابة الدخول: مسموح بس في تاريخ الحضور بتاع الحجز — لا قديم ولا مستقبلي */
+function doorDateBlockReason(b) {
+  if (!b) return 'missing';
+  if (b.cancelled) return 'cancelled';
+  if (!b.date) return 'nodate';
+  const today = todayStr();
+  if (b.date < today) return 'past';
+  if (b.date > today) return 'future';
+  return '';
+}
+function doorDateBlockToast(b) {
+  const reason = doorDateBlockReason(b);
+  if (!reason) return '';
+  const ar = currentLang === 'ar';
+  const d = b && b.date ? b.date : '—';
+  const msg = ar ? {
+    missing: 'لم يتم العثور على الحجز',
+    cancelled: 'الحجز ملغي — تاريخه ' + d,
+    nodate: 'الحجز بدون تاريخ حضور',
+    past: 'انتهى — تاريخ الحضور ' + d,
+    future: 'لم يحن موعده — تاريخ الحضور ' + d,
+  } : {
+    missing: 'Booking not found',
+    cancelled: 'Booking cancelled — date: ' + d,
+    nodate: 'Booking has no attendance date',
+    past: 'Expired — attendance date: ' + d,
+    future: 'Not yet due — attendance date: ' + d,
+  };
+  toast(msg[reason], 'warning');
+  return reason;
+}
+
 function handleScannedCode(code) {
   const raw = String(code).trim();
   const cleaned = raw.toUpperCase();
@@ -7407,6 +7443,14 @@ function handleScannedCode(code) {
     const gid = raw.slice(4).toUpperCase();
     const g = guests.find(x => x.id === gid);
     if (g) {
+      const bk = bookings.find(b => b.id === g.eventId);
+      // قيد تاريخ الحضور: تذكرة ضيف لحجز قديم أو مستقبلي ما تُستخدمش
+      if (bk && doorDateBlockToast(bk)) {
+        if (doorBeepEnabled) playBeep(330, 220);
+        activeDoorBookingId = null;
+        document.getElementById('scan-result-card').style.display = 'none';
+        return;
+      }
       // منع استخدام QR الضيف مرتين — بعد أول تسجيل يبقى «منتهي الصلاحية»
       if (g.checkedIn) {
         if (doorBeepEnabled) playBeep(330, 220);
@@ -7422,7 +7466,6 @@ function handleScannedCode(code) {
           .eq('id', g.id).then(() => {}).catch(e => cloudWarn(e));
       }
       // زيادة عدّاد المناسبة إن وُجدت
-      const bk = bookings.find(b => b.id === g.eventId);
       if (bk && bk.checkedIn < bk.guests) {
         bk.checkedIn++; saveData(); renderAll();
         if (CLOUD.enabled && CLOUD.client) {
@@ -7453,9 +7496,9 @@ function handleScannedCode(code) {
 
   const b = bookings.find(x => x.id === cleaned);
   if (b) {
-    if (isBookingExpired(b)) {
+    if (doorDateBlockToast(b)) {
       if (doorBeepEnabled) playBeep(330, 220);
-      toast((currentLang === 'ar' ? 'هذا الحجز منتهي — تاريخه ' : 'This booking has expired — date: ') + b.date, 'warning');
+      activeDoorBookingId = null;
       document.getElementById('scan-result-card').style.display = 'none';
       return;
     }
@@ -7491,6 +7534,11 @@ function handleScannedCode(code) {
 function updateQuickDoorSelect() {
   const select = document.getElementById('quick-door-select');
   if (!select) return;
+  // تنظيف الحجز النشط لو اليوم اتغيّر (منع +1 على حجز أمس)
+  if (activeDoorBookingId) {
+    const active = bookings.find(x => x.id === activeDoorBookingId);
+    if (!active || doorDateBlockReason(active)) activeDoorBookingId = null;
+  }
   // حجوزات اليوم فقط في القائمة السريعة (زي ما طُلب)
   const todayBookings = bookings.filter(b => b.date === todayStr() && !b.cancelled);
   const noData = document.getElementById('door-no-data');
@@ -7519,13 +7567,8 @@ function lookupBookingForDoor() {
     card.style.display = 'none';
     return;
   }
-  if (isBookingExpired(b)) {
-    toast((currentLang === 'ar' ? 'هذا الحجز منتهي — تاريخه ' : 'This booking has expired — date: ') + b.date, 'warning');
-    card.style.display = 'none';
-    return;
-  }
-  if (b.date !== todayStr()) {
-    toast((currentLang === 'ar' ? 'الحجز ليس لليوم — تاريخه ' : 'Booking is not for today — date: ') + b.date, 'warning');
+  if (doorDateBlockToast(b)) {
+    activeDoorBookingId = null;
     card.style.display = 'none';
     return;
   }
@@ -7553,7 +7596,13 @@ function updateProgressRing(checked, expected) {
 function incrementGuest(count) {
   if (!activeDoorBookingId) return;
   const b = bookings.find(x => x.id === activeDoorBookingId);
-  if (!b || isBookingExpired(b)) return;
+  if (!b) return;
+  // حتى زر «دخول +1» ما يقدرش يزيد عدّ حجز قديم أو مستقبلي بعد نص الليل
+  if (doorDateBlockToast(b)) {
+    activeDoorBookingId = null;
+    document.getElementById('scan-result-card').style.display = 'none';
+    return;
+  }
   if (b.checkedIn + count > b.guests) {
     toast('Exceeds expected guests', 'warning');
   }
