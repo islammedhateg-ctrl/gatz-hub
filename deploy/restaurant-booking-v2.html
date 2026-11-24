@@ -437,6 +437,33 @@ img { max-width: 100%; display: block; }
   background: var(--surface-2); padding: 4px 10px; border-radius: 999px;
   display: inline-flex; align-items: center; gap: 6px;
 }
+/* Bookings filter bar — لوحة مستقلة واضحة بدل صف أدوات مزدحم */
+.filter-bar {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px;
+  display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-xs);
+}
+.filter-main { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filter-main .filter-search { flex: 1 1 260px; min-width: 220px; }
+.filter-main .filter-search .input { width: 100%; }
+.filter-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.filter-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.filter-label { font-size: .72rem; color: var(--muted); font-weight: 700; padding-inline-start: 2px; }
+.filter-field .input-icon-wrap, .filter-field .input { width: 100%; }
+.filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-chips:empty { display: none; }
+.filter-chip {
+  display: inline-flex; align-items: center; gap: 7px; font-size: .74rem; font-weight: 600;
+  background: var(--primary-soft); color: var(--primary); border: 1px solid transparent;
+  border-radius: 999px; padding: 4px 9px; cursor: pointer; max-width: 100%;
+}
+.filter-chip:hover { border-color: var(--primary); }
+.filter-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 900px) { .filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filter-main .filter-search { flex-basis: 100%; }
+}
 
 /* UX modes */
 body.compact-mode th, body.compact-mode td { padding: 7px 10px !important; font-size: .85rem; }
@@ -1634,47 +1661,50 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
         <div class="page-header">
           <h2 data-i18n="bookings.title">سجل الحجوزات</h2>
           <p data-i18n="bookings.subtitle">جميع الحجوزات المسجلة</p>
-          <div class="toolbar-actions">
-            <div class="input-icon-wrap" style="width:260px; max-width:100%;">
-              <i class="fa-solid fa-magnifying-glass lead-icon"></i>
-              <input class="input" type="search" id="bookings-search" data-i18n-placeholder="search.bookings" placeholder="بحث بالاسم/ID/هاتف..." oninput="renderBookings()">
-              <button class="clear-btn" type="button" onclick="clearBookingSearch()" aria-label="Clear"><i class="fa-solid fa-xmark"></i></button>
+          <div class="filter-bar" id="bookings-filter-bar">
+            <div class="filter-main">
+              <div class="input-icon-wrap filter-search">
+                <i class="fa-solid fa-magnifying-glass lead-icon"></i>
+                <input class="input" type="search" id="bookings-search" data-i18n-placeholder="search.bookings" placeholder="بحث بالاسم/ID/هاتف..." oninput="renderBookings()">
+                <button class="clear-btn" type="button" onclick="clearBookingSearch()" aria-label="Clear"><i class="fa-solid fa-xmark"></i></button>
+              </div>
+              <span class="toolbar-count"><i class="fa-solid fa-list"></i> <span id="bookings-count">0</span></span>
+              <button class="btn btn-ghost btn-sm" onclick="clearBookingFilters()" title="Clear filters"><i class="fa-solid fa-eraser"></i> <span class="hide-mobile" data-i18n="filter.clear">مسح الفلاتر</span></button>
+              <button class="btn btn-outline btn-sm" onclick="exportCSV()" title="Export all bookings"><i class="fa-solid fa-file-csv"></i> <span class="hide-mobile" data-i18n="action.export">تصدير</span></button>
             </div>
-            <div class="input-icon-wrap" style="width:180px;">
-              <i class="fa-solid fa-calendar-days lead-icon"></i>
-              <input class="input" type="date" id="filter-date" onchange="onDateFilterChange('date')" aria-label="Date">
+            <div class="filter-grid">
+              <div class="filter-field">
+                <span class="filter-label" data-i18n="filter.date">التاريخ</span>
+                <span class="input-icon-wrap"><i class="fa-solid fa-calendar-days lead-icon"></i><input class="input" type="date" id="filter-date" onchange="onDateFilterChange('date')" aria-label="Date"></span>
+              </div>
+              <div class="filter-field">
+                <span class="filter-label" data-i18n="filter.month">الشهر</span>
+                <span class="input-icon-wrap"><i class="fa-solid fa-calendar-range lead-icon"></i><input class="input" type="month" id="filter-month" onchange="onDateFilterChange('month')" aria-label="Month"></span>
+              </div>
+              <div class="filter-field">
+                <span class="filter-label" data-i18n="filter.zone">المنطقة</span>
+                <span class="input-icon-wrap"><i class="fa-solid fa-layer-group lead-icon"></i><select class="input" id="filter-zone" onchange="renderBookings()" aria-label="Zone"><option value="" data-i18n="filter.allZones">جميع المناطق</option></select></span>
+              </div>
+              <div class="filter-field">
+                <span class="filter-label" data-i18n="filter.status">الحالة</span>
+                <span class="input-icon-wrap"><i class="fa-solid fa-circle-check lead-icon"></i><select class="input" id="filter-status" onchange="renderBookings()" aria-label="Status">
+                  <option value="" data-i18n="filter.allStatus">جميع الحالات</option>
+                  <option value="verified" data-i18n="filter.verified">معتمد</option>
+                  <option value="pending" data-i18n="filter.pending">معلّق</option>
+                  <option value="cancelled" data-i18n="booking.cancelledBadge">ملغي</option>
+                </select></span>
+              </div>
+              <div class="filter-field">
+                <span class="filter-label" data-i18n="filter.sort">الترتيب</span>
+                <span class="input-icon-wrap"><i class="fa-solid fa-arrow-down-wide-short lead-icon"></i><select class="input" id="bookings-sort" onchange="renderBookings()" aria-label="Sort">
+                  <option value="newest" data-i18n="sort.newest">الأحدث</option>
+                  <option value="oldest" data-i18n="sort.oldest">الأقدم</option>
+                  <option value="name" data-i18n="sort.name">الاسم</option>
+                  <option value="guests" data-i18n="sort.guests">عدد الضيوف</option>
+                </select></span>
+              </div>
             </div>
-            <div class="input-icon-wrap" style="width:180px;">
-              <i class="fa-solid fa-calendar-range lead-icon"></i>
-              <input class="input" type="month" id="filter-month" onchange="onDateFilterChange('month')" aria-label="Month">
-            </div>
-            <div class="input-icon-wrap" style="width:200px;">
-              <i class="fa-solid fa-layer-group lead-icon"></i>
-              <select class="input" id="filter-zone" onchange="renderBookings()" aria-label="Zone">
-                <option value="" data-i18n="filter.allZones">جميع المناطق</option>
-              </select>
-            </div>
-            <div class="input-icon-wrap" style="width:180px;">
-              <i class="fa-solid fa-circle-check lead-icon"></i>
-              <select class="input" id="filter-status" onchange="renderBookings()" aria-label="Status">
-                <option value="" data-i18n="filter.allStatus">جميع الحالات</option>
-                <option value="verified" data-i18n="filter.verified">معتمد</option>
-                <option value="pending" data-i18n="filter.pending">معلّق</option>
-                <option value="cancelled" data-i18n="booking.cancelledBadge">ملغي</option>
-              </select>
-            </div>
-            <div class="input-icon-wrap" style="width:160px;">
-              <i class="fa-solid fa-arrow-down-wide-short lead-icon"></i>
-              <select class="input" id="bookings-sort" onchange="renderBookings()" aria-label="Sort">
-                <option value="newest" data-i18n="sort.newest">الأحدث</option>
-                <option value="oldest" data-i18n="sort.oldest">الأقدم</option>
-                <option value="name" data-i18n="sort.name">الاسم</option>
-                <option value="guests" data-i18n="sort.guests">عدد الضيوف</option>
-              </select>
-            </div>
-            <span class="toolbar-count"><i class="fa-solid fa-list"></i> <span id="bookings-count">0</span></span>
-            <button class="btn btn-ghost btn-sm" onclick="clearBookingFilters()" title="Clear filters"><i class="fa-solid fa-eraser"></i> <span class="hide-mobile" data-i18n="filter.clear">مسح الفلاتر</span></button>
-            <button class="btn btn-outline btn-sm" onclick="exportCSV()" title="Export CSV"><i class="fa-solid fa-file-csv"></i> <span class="hide-mobile" data-i18n="action.export">تصدير</span></button>
+            <div class="filter-chips" id="bookings-filter-chips"></div>
           </div>
         </div>
         <div class="card table-card">
@@ -2898,6 +2928,12 @@ const I18N = {
     'filter.pending': 'معلّق',
     'filter.allMethods': 'جميع الطرق',
     'filter.clear': 'مسح الفلاتر',
+    'filter.chipSearch': 'بحث',
+    'filter.date': 'التاريخ',
+    'filter.month': 'الشهر',
+    'filter.zone': 'المنطقة',
+    'filter.status': 'الحالة',
+    'filter.sort': 'الترتيب',
     'search.bookings': 'بحث بالاسم/ID/هاتف...',
     'search.noResults': 'لا توجد نتائج',
     'sort.newest': 'الأحدث',
@@ -3286,6 +3322,12 @@ const I18N = {
     'filter.pending': 'Pending',
     'filter.allMethods': 'All Methods',
     'filter.clear': 'Clear filters',
+    'filter.chipSearch': 'Search',
+    'filter.date': 'Date',
+    'filter.month': 'Month',
+    'filter.zone': 'Zone',
+    'filter.status': 'Status',
+    'filter.sort': 'Sort',
     'search.bookings': 'Search name/ID/phone...',
     'search.noResults': 'No results found',
     'sort.newest': 'Newest',
@@ -5028,11 +5070,12 @@ function renderBookings() {
       zones.map(z => `<option value="${escapeHtml(z.id)}">${escapeHtml(zoneName(z))}</option>`).join('');
     zSel.value = zones.some(z => z.id === chosen) ? chosen : '';
   }
-  // search clear button visibility
+  // search clear button visibility + شرائح الفلاتر الفعّالة
   const searchInput = document.getElementById('bookings-search');
   if (searchInput) {
     searchInput.closest('.input-icon-wrap')?.classList.toggle('has-value', searchInput.value.length > 0);
   }
+  renderFilterChips();
   // count badge
   const countEl = document.getElementById('bookings-count');
   if (countEl) countEl.textContent = `${list.length} / ${bookings.length}`;
@@ -5057,6 +5100,29 @@ function clearBookingFilters() {
   if (sort) sort.value = 'newest';
   document.getElementById('bookings-search')?.closest('.input-icon-wrap')?.classList.remove('has-value');
   renderBookings();
+}
+function clearOneFilter(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.value = '';
+  if (id === 'bookings-search') el.closest('.input-icon-wrap')?.classList.remove('has-value');
+  renderBookings();
+}
+function renderFilterChips() {
+  const box = document.getElementById('bookings-filter-chips');
+  if (!box) return;
+  const chips = [];
+  const add = (id, label, value) => {
+    if (value) chips.push(`<button type="button" class="filter-chip" onclick="clearOneFilter('${id}')" title="${t('filter.clear')}"><span>${escapeHtml(label)}: ${escapeHtml(value)}</span><i class="fa-solid fa-xmark"></i></button>`);
+  };
+  add('bookings-search', t('filter.chipSearch'), document.getElementById('bookings-search')?.value || '');
+  add('filter-date', t('filter.date'), document.getElementById('filter-date')?.value || '');
+  add('filter-month', t('filter.month'), document.getElementById('filter-month')?.value || '');
+  const zSel = document.getElementById('filter-zone');
+  add('filter-zone', t('filter.zone'), zSel?.value ? (zSel.selectedOptions[0]?.textContent || '') : '');
+  const sSel = document.getElementById('filter-status');
+  add('filter-status', t('filter.status'), sSel?.selectedOptions[0]?.textContent || '');
+  box.innerHTML = chips.join('');
 }
 
 /* ============================================================
