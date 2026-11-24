@@ -16,43 +16,28 @@ if (location.protocol === 'http:' && !['127.0.0.1','localhost'].includes(locatio
   h1{font-size:1.15rem;margin:0}
   p{opacity:.9;font-size:.9rem;margin:0;line-height:1.7}
   a{color:#fff;text-decoration:underline;font-weight:700}
-  .err{display:none;background:rgba(0,0,0,.2);border-radius:10px;padding:12px 16px;font-size:.82rem;max-width:420px}
 </style>
 </head>
 <body>
   <div class="spin"></div>
-  <h1>جارٍ تحديث Gatz. Hub...</h1>
-  <p>بنستبدل النسخة القديمة بالجديدة من غير لمس بياناتك.</p>
-  <div class="err" id="err"></div>
-  <p><a href="restaurant-booking-v2.html">اضغط هنا لو استغرق الوقت</a></p>
-  <noscript><p>يفضّل تفعيل JavaScript عشان التحديث يتم تلقائياً.</p></noscript>
+  <h1>جارٍ فتح النسخة الجديدة...</h1>
+  <p>التطبيق هيبتدى على طول — بياناتك مش هتتلمس.</p>
+  <p><a id="manual-link" href="restaurant-booking-v2.html">اضغط هنا لو ما حصلش تحويل</a></p>
+  <noscript><p>يفضّل تفعيل JavaScript عشان التحويل يتم تلقائياً، أو اضغط على اللينك فوق.</p></noscript>
 
 <script>
-(async function () {
-  const base = ['127.0.0.1','localhost'].includes(location.hostname) ? '' : 'https://' + location.host + '/';
+(function () {
+  const local = ['127.0.0.1','localhost'].includes(location.hostname);
+  const base = local ? '' : 'https://' + location.host + '/';
   const target = base + 'restaurant-booking-v2.html?v=' + Date.now();
-  const errBox = document.getElementById('err');
+  const link = document.getElementById('manual-link');
+  if (link) link.href = target;
 
-  function fail(e) {
-    if (errBox) {
-      errBox.style.display = 'block';
-      errBox.textContent = 'حصلت مشكلة بسيطة: ' + (e && e.message ? e.message : e) + ' — هيفتح التطبيق على أي حال.';
-    }
-  }
-
-  try {
-    // ١) إلغاء أي Service Worker قديم (مش بيلمس localStorage)
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r => r.unregister().catch(() => {})));
-    }
-  } catch (e) { fail(e); }
-
-  // ٢) فتح النسخة الجديدة برابط فريد.
-  // ملحوظة: متعملش caches.delete() هنا — لو الـ SW القديم لسه متحكم والشبكة فشلت،
-  // الكاش هو البديل الوحيد، ومسحه قبل التحويل ممكن يسبب ERR_FAILED.
-  // الرابط الجديد مختلف أصلاً فالنسخة القديمة مش هتستخدم تاني.
+  // متعملش unregister للـ Service Worker ولا caches.delete():
+  // لو الشبكة فشلت، الكاش هو البديل الوحيد اللي بيخلي التطبيق يشتغل.
+  // الرابط الجديد different بـ ?v= فبيجلب HTML جديد من الشبكة لو متاحة.
   location.replace(target);
+  setTimeout(function () { window.location.href = target; }, 1500);
 })();
 </script>
 </body>
