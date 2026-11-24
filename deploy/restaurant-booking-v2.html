@@ -786,37 +786,94 @@ select.input option:checked { background: var(--primary-soft); color: var(--prim
 }
 .has-icon:focus-within > i.field-icon { color: var(--primary); }
 .input.error { border-color: var(--danger); }
-/* حقول التاريخ والوقت — تصميم نظيف بسيط */
-.clean-field { display: flex; flex-direction: column; gap: 0; }
-.clean-box {
-  position: relative; display: flex; align-items: center; gap: 10px; min-height: 50px;
-  background: var(--surface); border: 1px solid var(--border-2); border-radius: 12px;
-  padding: 10px 13px; box-shadow: 0 1px 2px rgba(0,0,0,.02); transition: border-color .15s, box-shadow .15s;
+/* منتقي التاريخ والوقت — تصميم احترافي */
+.picker-field { position: relative; }
+.picker-trigger {
+  width: 100%; display: flex; align-items: center; gap: 10px; min-height: 54px;
+  background: var(--surface); border: 1px solid var(--border-2); border-radius: 14px;
+  padding: 10px 13px; font-family: inherit; text-align: start; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,.02); transition: border-color .15s, box-shadow .15s;
 }
-.clean-box:hover, .clean-box:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
-.clean-box > *:not(.native-overlay) { pointer-events: none; }
-.clean-box i.field-icon { color: var(--primary); font-size: .95rem; }
-.clean-val {
-  flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
-  font-family: inherit; font-size: .9rem; font-weight: 700; color: var(--text);
-  padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.picker-trigger:hover, .picker-trigger:focus-visible, .picker-trigger.open {
+  border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); outline: 0;
 }
-.clean-mini { font-size: .7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.native-overlay {
-  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
-  border: 0; padding: 0; font-size: 16px; color: transparent; background: transparent;
+.picker-trigger.readonly { cursor: default; }
+.picker-trigger.readonly:hover { border-color: var(--border-2); box-shadow: none; }
+.picker-trigger > i:first-child { color: var(--primary); font-size: .95rem; flex: none; }
+.picker-main {
+  flex: 1; min-width: 0; font-size: .92rem; font-weight: 800; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.quick-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-.quick-chip {
+.picker-sub {
+  font-size: .68rem; font-weight: 800; color: var(--primary); background: var(--primary-soft);
+  border-radius: 99px; padding: 4px 9px; white-space: nowrap; flex: none;
+}
+.picker-chev { color: var(--muted); font-size: .78rem; flex: none; transition: transform .18s; }
+.picker-trigger.open .picker-chev { transform: rotate(180deg); }
+.picker-panel {
+  position: absolute; z-index: 950; top: calc(100% + 6px); inset-inline: 0;
+  background: var(--surface); border: 1px solid var(--border-2); border-radius: 16px;
+  box-shadow: 0 18px 45px rgba(20,8,14,.16); padding: 14px; min-width: 300px;
+  animation: pickerPop .14s ease-out;
+}
+@keyframes pickerPop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.cal-title { text-align: center; flex: 1; }
+.cal-title b { display: block; font-size: .92rem; }
+.cal-title span { font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cal-nav {
+  width: 34px; height: 34px; flex: none; border: 1px solid var(--border-2); background: var(--surface);
+  border-radius: 10px; cursor: pointer; font-size: 1.1rem; color: var(--text); font-family: inherit;
+}
+.cal-nav:hover { border-color: var(--primary); color: var(--primary); }
+.cal-week, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; text-align: center; }
+.cal-week span { font-size: .64rem; color: var(--muted); font-weight: 800; padding: 4px 0; }
+.cal-day {
+  aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 10px; background: transparent; color: var(--text);
+  font-family: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; position: relative;
+  font-variant-numeric: tabular-nums;
+}
+.cal-day:hover:not(:disabled) { background: var(--surface-2); }
+.cal-day.weekend { color: var(--primary); }
+.cal-day.today::after { content: ''; position: absolute; inset-inline: 0; bottom: 5px; margin: auto; width: 4px; height: 4px; border-radius: 50%; background: var(--primary); }
+.cal-day.selected { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(155,27,62,.25); }
+.cal-day.selected.today::after { background: #fff; }
+.cal-day:disabled { opacity: .3; cursor: not-allowed; }
+.cal-day.empty { visibility: hidden; }
+.cal-foot, .time-foot { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.mini-btn {
   border: 1px solid var(--border-2); background: var(--surface); color: var(--muted);
-  border-radius: 99px; padding: 5px 10px; font-size: .72rem; font-weight: 700;
-  font-family: inherit; cursor: pointer; white-space: nowrap; min-height: 30px;
+  border-radius: 9px; padding: 6px 10px; font-family: inherit; font-size: .72rem; font-weight: 700; cursor: pointer;
 }
-.quick-chip:hover { border-color: var(--primary); color: var(--primary); }
-.quick-chip.on {
-  background: var(--primary-soft); border-color: var(--primary-soft-2); color: var(--primary);
+.mini-btn:hover { border-color: var(--primary); color: var(--primary); }
+.mini-btn.on { background: var(--primary-soft); border-color: var(--primary-soft-2); color: var(--primary); }
+.done-btn {
+  margin-inline-start: auto; background: var(--primary); color: #fff; border: 0; border-radius: 9px;
+  padding: 7px 15px; font-family: inherit; font-size: .76rem; font-weight: 800; cursor: pointer;
 }
-@media (max-width: 480px) { .quick-chip { font-size: .68rem; padding: 5px 8px; } }
+.time-head { display: flex; align-items: baseline; justify-content: center; gap: 10px; padding: 6px 0 12px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+.time-head b { font-size: 1.5rem; color: var(--primary); font-variant-numeric: tabular-nums; }
+.time-head span { font-size: .76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.time-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.time-tab {
+  flex: 1; border: 1px solid var(--border-2); background: var(--surface); color: var(--muted);
+  border-radius: 9px; padding: 7px; font-family: inherit; font-size: .75rem; font-weight: 800; cursor: pointer;
+}
+.time-tab.on { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+.time-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-height: 210px; overflow-y: auto; padding: 2px; }
+.slot-btn {
+  border: 1px solid var(--border-2); background: var(--surface); color: var(--text); border-radius: 9px;
+  padding: 9px 2px; font-family: inherit; font-size: .72rem; font-weight: 700; cursor: pointer;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.slot-btn:hover { border-color: var(--primary); color: var(--primary); }
+.slot-btn.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+@media (max-width: 480px) {
+  .picker-panel { min-width: 0; padding: 12px; }
+  .slot-btn { font-size: .68rem; padding: 8px 1px; }
+  .cal-day { font-size: .75rem; }
+}
 .input::placeholder { color: var(--muted-2); }
 .helper { font-size: .75rem; color: var(--muted); }
 .helper.error { color: var(--danger); }
@@ -1896,17 +1953,28 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
               <div class="form-grid">
                 <div class="form-group">
                   <label data-i18n="field.date">تاريخ الحجز <span class="req">*</span></label>
-                  <div class="clean-field">
-                    <div class="clean-box">
-                      <i class="fa-solid fa-calendar-days field-icon"></i>
-                      <input class="clean-val" type="text" id="b-date-display" readonly placeholder="اختر التاريخ" aria-label="Booking Date">
-                      <input type="date" id="b-date" class="native-overlay" min="" data-required="1" onchange="checkBookingDate(); refreshQuickChips();" aria-label="Booking date picker">
-                    </div>
-                    <div class="quick-chips" id="date-quick-chips">
-                      <button type="button" class="quick-chip" data-day="today" data-i18n="quick.today" onclick="setQuickDate('today')">اليوم</button>
-                      <button type="button" class="quick-chip" data-day="tomorrow" data-i18n="quick.tomorrow" onclick="setQuickDate('tomorrow')">بكرة</button>
-                      <button type="button" class="quick-chip" data-day="weekend" data-i18n="quick.weekend" onclick="setQuickDate('weekend')">نهاية الأسبوع</button>
-                      <button type="button" class="quick-chip" data-day="custom" data-i18n="quick.custom" onclick="setQuickDate('custom')">تخصيص</button>
+                  <div class="picker-field">
+                    <button type="button" class="picker-trigger" id="b-date-trigger" onclick="toggleDatePicker(event)" aria-label="Open booking date picker">
+                      <i class="fa-solid fa-calendar-days"></i>
+                      <span class="picker-main" id="b-date-display">اختر التاريخ</span>
+                      <span class="picker-sub" id="date-sub"></span>
+                      <i class="fa-solid fa-chevron-down picker-chev"></i>
+                    </button>
+                    <input type="hidden" id="b-date" min="" data-required="1" onchange="checkBookingDate(); refreshQuickChips();">
+                    <div class="picker-panel" id="date-picker" style="display:none;">
+                      <div class="cal-head">
+                        <button type="button" class="cal-nav" onclick="shiftBookingCalendarMonth(-1)" aria-label="Previous month">‹</button>
+                        <div class="cal-title"><b id="cal-month"></b><span id="cal-year"></span></div>
+                        <button type="button" class="cal-nav" onclick="shiftBookingCalendarMonth(1)" aria-label="Next month">›</button>
+                      </div>
+                      <div class="cal-week" id="cal-weekdays"></div>
+                      <div class="cal-grid" id="cal-grid"></div>
+                      <div class="cal-foot">
+                        <button type="button" class="mini-btn" data-day="today" data-i18n="quick.today" onclick="setQuickDate('today')">اليوم</button>
+                        <button type="button" class="mini-btn" data-day="tomorrow" data-i18n="quick.tomorrow" onclick="setQuickDate('tomorrow')">بكرة</button>
+                        <button type="button" class="mini-btn" data-day="weekend" data-i18n="quick.weekend" onclick="setQuickDate('weekend')">نهاية الأسبوع</button>
+                        <button type="button" class="done-btn" data-i18n="picker.done" onclick="closePickers()">تم</button>
+                      </div>
                     </div>
                     <div class="helper" id="date-warning" style="color:var(--danger); font-weight:600;"></div>
                   </div>
@@ -1926,30 +1994,41 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.start">وقت الوصول <span class="req">*</span></label>
-                  <div class="clean-field">
-                    <div class="clean-box">
-                      <i class="fa-solid fa-clock field-icon"></i>
-                      <input class="clean-val" type="text" id="b-start-display" readonly aria-label="Arrival Time">
-                      <span class="clean-mini" id="start-mini">18:00</span>
-                      <input type="time" id="b-start" class="native-overlay" min="10:00" max="23:59" value="18:00" data-required="1" onchange="refreshTimeDisplays(); refreshQuickChips();" aria-label="Arrival time picker">
-                    </div>
-                    <div class="quick-chips" id="time-quick-chips">
-                      <button type="button" class="quick-chip" data-time="18:00" onclick="setQuickTime('18:00')">١٨:٠٠</button>
-                      <button type="button" class="quick-chip" data-time="19:00" onclick="setQuickTime('19:00')">١٩:٠٠</button>
-                      <button type="button" class="quick-chip" data-time="20:00" onclick="setQuickTime('20:00')">٢٠:٠٠</button>
-                      <button type="button" class="quick-chip" data-time="21:00" onclick="setQuickTime('21:00')">٢١:٠٠</button>
+                  <div class="picker-field">
+                    <button type="button" class="picker-trigger" id="b-time-trigger" onclick="toggleTimePicker(event)" aria-label="Open arrival time picker">
+                      <i class="fa-solid fa-clock"></i>
+                      <span class="picker-main" id="b-start-display">06:00 PM</span>
+                      <span class="picker-sub" id="start-mini">18:00</span>
+                      <i class="fa-solid fa-chevron-down picker-chev"></i>
+                    </button>
+                    <input type="hidden" id="b-start" value="18:00" data-required="1" onchange="refreshTimeDisplays(); refreshQuickChips();">
+                    <div class="picker-panel" id="time-picker" style="display:none;">
+                      <div class="time-head"><b id="time-big">06:00 PM</b><span id="time-24">18:00</span></div>
+                      <div class="time-tabs">
+                        <button type="button" class="time-tab" data-period="morning" data-i18n="picker.morning" onclick="setTimePeriod('morning')">صباحاً</button>
+                        <button type="button" class="time-tab" data-period="evening" data-i18n="picker.evening" onclick="setTimePeriod('evening')">مساءً</button>
+                      </div>
+                      <div class="time-grid" id="time-grid"></div>
+                      <div class="time-foot">
+                        <button type="button" class="mini-btn" data-time="18:00" onclick="setQuickTime('18:00')">١٨:٠٠</button>
+                        <button type="button" class="mini-btn" data-time="19:00" onclick="setQuickTime('19:00')">١٩:٠٠</button>
+                        <button type="button" class="mini-btn" data-time="20:00" onclick="setQuickTime('20:00')">٢٠:٠٠</button>
+                        <button type="button" class="mini-btn" data-time="21:00" onclick="setQuickTime('21:00')">٢١:٠٠</button>
+                        <button type="button" class="done-btn" data-i18n="picker.done" onclick="closePickers()">تم</button>
+                      </div>
                     </div>
                     <div class="helper" id="start-hint"></div>
                   </div>
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.end">وقت المغادرة <span class="req">*</span></label>
-                  <div class="clean-field">
-                    <div class="clean-box">
-                      <i class="fa-solid fa-clock-rotate-left field-icon"></i>
-                      <input class="clean-val" type="text" id="b-end-display" readonly aria-label="Departure Time">
-                      <input type="hidden" id="b-end" value="00:00" data-required="1">
-                    </div>
+                  <div class="picker-field">
+                    <button type="button" class="picker-trigger readonly" aria-label="Departure Time (automatic)">
+                      <i class="fa-solid fa-clock-rotate-left"></i>
+                      <span class="picker-main" id="b-end-display">12:00 AM</span>
+                      <span class="picker-sub" id="end-mini">00:00</span>
+                    </button>
+                    <input type="hidden" id="b-end" value="00:00" data-required="1">
                     <div class="helper" id="end-hint"></div>
                   </div>
                 </div>
@@ -3003,6 +3082,11 @@ const I18N = {
     'quick.tomorrow': 'بكرة',
     'quick.weekend': 'نهاية الأسبوع',
     'quick.custom': 'تخصيص',
+    'picker.done': 'تم',
+    'picker.morning': 'صباحاً',
+    'picker.evening': 'مساءً',
+    'picker.weekday': 'يوم عمل',
+    'picker.weekendDay': 'نهاية أسبوع',
     'field.type': 'نوع الحجز',
     'field.package': 'الباقة (رسوم لكل ضيف)',
     'field.fees': 'الرسوم',
@@ -3401,6 +3485,11 @@ const I18N = {
     'quick.tomorrow': 'Tomorrow',
     'quick.weekend': 'Weekend',
     'quick.custom': 'Custom',
+    'picker.done': 'Done',
+    'picker.morning': 'Morning',
+    'picker.evening': 'Evening',
+    'picker.weekday': 'Weekday',
+    'picker.weekendDay': 'Weekend',
     'field.type': 'Booking Type',
     'field.package': 'Package (fee per person)',
     'field.fees': 'Fees',
@@ -5497,7 +5586,17 @@ function formatDateLabel(iso) {
 }
 function refreshDateDisplay() {
   const el = document.getElementById('b-date-display');
-  if (el) el.value = formatDateLabel(document.getElementById('b-date')?.value);
+  const iso = document.getElementById('b-date')?.value || '';
+  if (el) el.textContent = formatDateLabel(iso);
+  const sub = document.getElementById('date-sub');
+  if (sub) {
+    const p = dateParts(iso);
+    if (!p.y) sub.textContent = '';
+    else {
+      const dow = new Date(p.y, p.m - 1, p.d).getDay();
+      sub.textContent = dow > 3 ? t('picker.weekendDay') : t('picker.weekday');
+    }
+  }
 }
 function addDays(iso, n) {
   const p = dateParts(iso);
@@ -5515,38 +5614,87 @@ function nextWeekendIso() {
   }
   return iso;
 }
-function openNativePicker(el) {
-  if (!el) return;
-  if (typeof el.showPicker === 'function') {
-    try { el.showPicker(); return; } catch (e) { /* fallback */ }
+/* تقويم احترافي — شهر كامل، أيام مشغولة معطّلة، ومؤشر لليوم الحالي */
+let calY = 0, calM = 0, timePeriod = 'evening';
+function closePickers() {
+  ['date-picker','time-picker'].forEach(id => { const p = document.getElementById(id); if (p) p.style.display = 'none'; });
+  ['b-date-trigger','b-time-trigger'].forEach(id => { const b = document.getElementById(id); if (b) b.classList.remove('open'); });
+}
+function resetBookingCalendarView() {
+  const iso = document.getElementById('b-date')?.value || todayStr();
+  const p = dateParts(iso), t = dateParts(todayStr());
+  if (!p.y || p.y < t.y || (p.y === t.y && p.m < t.m)) { calY = t.y; calM = t.m; }
+  else { calY = p.y; calM = p.m; }
+}
+function renderBookingCalendar() {
+  const monthEl = document.getElementById('cal-month');
+  const yearEl = document.getElementById('cal-year');
+  const weekEl = document.getElementById('cal-weekdays');
+  const grid = document.getElementById('cal-grid');
+  if (!monthEl || !yearEl || !weekEl || !grid) return;
+  const months = currentLang === 'ar' ? dateMonthsAR : dateMonthsEN;
+  const weekNames = currentLang === 'ar'
+    ? ['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت']
+    : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  monthEl.textContent = months[calM - 1];
+  yearEl.textContent = calY;
+  weekEl.innerHTML = weekNames.map(d => `<span>${d}</span>`).join('');
+  const first = new Date(calY, calM - 1, 1).getDay();
+  const last = new Date(calY, calM, 0).getDate();
+  const today = todayStr();
+  const selected = document.getElementById('b-date')?.value || '';
+  const pad = n => String(n).padStart(2, '0');
+  let html = '';
+  for (let i = 0; i < first; i++) html += '<span class="cal-day empty"></span>';
+  for (let d = 1; d <= last; d++) {
+    const iso = `${calY}-${pad(calM)}-${pad(d)}`;
+    const dow = new Date(calY, calM - 1, d).getDay();
+    const cls = ['cal-day', dow >= 4 ? 'weekend' : '', iso === selected ? 'selected' : '', iso === today ? 'today' : ''].join(' ');
+    html += `<button type="button" class="${cls}" ${iso < today ? 'disabled' : ''} onclick="pickCalendarDate('${iso}')" aria-label="${formatDateLabel(iso)}">${d}</button>`;
   }
-  el.focus(); el.click();
+  grid.innerHTML = html;
+}
+function shiftBookingCalendarMonth(delta) {
+  let y = calY, m = calM + delta;
+  if (m < 1) { m = 12; y--; }
+  if (m > 12) { m = 1; y++; }
+  const t = dateParts(todayStr());
+  if (y < t.y || (y === t.y && m < t.m)) return;
+  calY = y; calM = m;
+  renderBookingCalendar();
+}
+function toggleDatePicker(e) {
+  if (e) e.stopPropagation();
+  const panel = document.getElementById('date-picker');
+  const trig = document.getElementById('b-date-trigger');
+  if (!panel || !trig) return;
+  const show = panel.style.display !== 'block';
+  closePickers();
+  if (show) {
+    resetBookingCalendarView();
+    renderBookingCalendar();
+    panel.style.display = 'block';
+    trig.classList.add('open');
+  }
+}
+function pickCalendarDate(iso) {
+  const el = document.getElementById('b-date');
+  if (!el) return;
+  el.value = iso;
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+  refreshDateDisplay();
+  refreshQuickChips();
+  closePickers();
 }
 function setQuickDate(kind) {
   const el = document.getElementById('b-date');
   if (!el) return;
-  if (kind === 'custom') { openNativePicker(el); return; }
   const iso = kind === 'today' ? todayStr() : kind === 'tomorrow' ? addDays(todayStr(), 1) : nextWeekendIso();
   el.value = iso;
   el.dispatchEvent(new Event('change', { bubbles: true }));
   refreshDateDisplay();
-  checkBookingDate();
   refreshQuickChips();
-}
-function refreshQuickChips() {
-  const iso = document.getElementById('b-date')?.value || '';
-  const today = todayStr();
-  const p = dateParts(iso);
-  const dow = p.y ? new Date(p.y, p.m - 1, p.d).getDay() : -1;
-  const onDate = {
-    today: iso === today,
-    tomorrow: iso === addDays(today, 1),
-    weekend: !!iso && iso >= today && dow >= 4 && dow <= 6,
-    custom: false
-  };
-  document.querySelectorAll('#date-quick-chips .quick-chip').forEach(c => c.classList.toggle('on', !!onDate[c.dataset.day]));
-  const start = document.getElementById('b-start')?.value || '';
-  document.querySelectorAll('#time-quick-chips .quick-chip').forEach(c => c.classList.toggle('on', c.dataset.time === start));
+  closePickers();
 }
 // ساعات العمل: وصول ١٠ صباحاً → ١١:٥٩ مساءً، ومغادرة ١٢ أو ١ صباحاً حسب نوع اليوم
 function timeMinutes(v) {
@@ -5596,20 +5744,97 @@ function formatTimeDisplay(v) {
   const t = timeTo12(v);
   return String(t.h12).padStart(2, '0') + ':' + String(t.m).padStart(2, '0') + ' ' + t.ap;
 }
-function refreshTimeDisplays() {
-  ['start','end'].forEach(k => {
-    const el = document.getElementById('b-' + k + '-display');
-    if (el) el.value = formatTimeDisplay(document.getElementById('b-' + k).value);
-  });
-  const mini = document.getElementById('start-mini');
-  if (mini) mini.textContent = document.getElementById('b-start')?.value || '';
+/* ساعة احترافية — صباح/مساء وشبكة أوقات بزيادة ٣٠ دقيقة */
+function timeSlotsFor(period) {
+  const out = [];
+  const from = period === 'morning' ? 600 : 720;
+  const to = period === 'morning' ? 719 : 1439;
+  for (let m = from; m <= to; m += 30) out.push(String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'));
+  return out;
+}
+function renderTimePicker() {
+  const big = document.getElementById('time-big');
+  const small = document.getElementById('time-24');
+  const grid = document.getElementById('time-grid');
+  if (!big || !small || !grid) return;
+  const cur = document.getElementById('b-start')?.value || '18:00';
+  big.textContent = formatTimeDisplay(cur);
+  small.textContent = cur;
+  document.querySelectorAll('.time-tab').forEach(tab => tab.classList.toggle('on', tab.dataset.period === timePeriod));
+  grid.innerHTML = timeSlotsFor(timePeriod).map(v =>
+    `<button type="button" class="slot-btn ${v === cur ? 'on' : ''}" onclick="pickTimeSlot('${v}')">${formatTimeDisplay(v)}</button>`
+  ).join('');
+}
+function toggleTimePicker(e) {
+  if (e) e.stopPropagation();
+  const panel = document.getElementById('time-picker');
+  const trig = document.getElementById('b-time-trigger');
+  if (!panel || !trig) return;
+  const show = panel.style.display !== 'block';
+  closePickers();
+  if (show) {
+    const cur = document.getElementById('b-start')?.value || '18:00';
+    timePeriod = Number(String(cur).split(':')[0]) < 12 ? 'morning' : 'evening';
+    renderTimePicker();
+    panel.style.display = 'block';
+    trig.classList.add('open');
+  }
+}
+function setTimePeriod(period) {
+  timePeriod = period;
+  renderTimePicker();
+}
+function pickTimeSlot(v) {
+  const el = document.getElementById('b-start');
+  if (!el || !v) return;
+  el.value = v;
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+  refreshTimeDisplays();
+  refreshQuickChips();
+  closePickers();
 }
 function setQuickTime(v) {
   const el = document.getElementById('b-start');
   if (!el || !v) return;
   el.value = v;
+  el.dispatchEvent(new Event('change', { bubbles: true }));
   refreshTimeDisplays();
   refreshQuickChips();
+  closePickers();
+}
+function refreshQuickChips() {
+  const iso = document.getElementById('b-date')?.value || '';
+  const today = todayStr();
+  const p = dateParts(iso);
+  const dow = p.y ? new Date(p.y, p.m - 1, p.d).getDay() : -1;
+  const onDate = {
+    today: iso === today,
+    tomorrow: iso === addDays(today, 1),
+    weekend: !!iso && iso >= today && dow >= 4 && dow <= 6
+  };
+  document.querySelectorAll('.mini-btn[data-day]').forEach(c => c.classList.toggle('on', !!onDate[c.dataset.day]));
+  const start = document.getElementById('b-start')?.value || '';
+  document.querySelectorAll('.mini-btn[data-time]').forEach(c => c.classList.toggle('on', c.dataset.time === start));
+  refreshDateDisplay();
+  const dp = document.getElementById('date-picker');
+  if (dp && dp.style.display === 'block') renderBookingCalendar();
+  const tp = document.getElementById('time-picker');
+  if (tp && tp.style.display === 'block') renderTimePicker();
+}
+function refreshTimeDisplays() {
+  ['start','end'].forEach(k => {
+    const el = document.getElementById('b-' + k + '-display');
+    if (el) el.textContent = formatTimeDisplay(document.getElementById('b-' + k).value);
+  });
+  const startVal = document.getElementById('b-start')?.value || '';
+  const mini = document.getElementById('start-mini');
+  if (mini) mini.textContent = startVal;
+  const endMini = document.getElementById('end-mini');
+  if (endMini) endMini.textContent = document.getElementById('b-end')?.value || '';
+  const big = document.getElementById('time-big');
+  if (big) big.textContent = formatTimeDisplay(startVal);
+  const small = document.getElementById('time-24');
+  if (small) small.textContent = startVal;
 }
 function updateDateMin() {
   const bd = document.getElementById('b-date');
@@ -8386,6 +8611,15 @@ if (!document.getElementById('b-date').value) document.getElementById('b-date').
 refreshDateDisplay();
 refreshHoursHints();
 refreshQuickChips();
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('.picker-field')) closePickers();
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closePickers();
+});
+const previewMode = new URLSearchParams(location.search).get('preview');
+if (previewMode === 'date') toggleDatePicker();
+if (previewMode === 'time') toggleTimePicker();
 </script>
 
 </body>
