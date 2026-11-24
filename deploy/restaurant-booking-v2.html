@@ -2119,6 +2119,10 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
         <div class="page-header">
           <h2 data-i18n="zones.title">المناطق (Zones)</h2>
           <p data-i18n="zones.subtitle">حالة وسعة كل منطقة</p>
+          <div class="actions">
+            <input class="input" type="date" id="zones-date" onchange="renderZones(); renderZonesBars();" aria-label="تاريخ العرض" title="تاريخ العرض">
+            <button class="btn btn-primary btn-sm" id="zone-add-btn" onclick="openZoneNew()" style="display:none;"><i class="fa-solid fa-plus"></i> <span data-i18n="zones.add">إضافة منطقة</span></button>
+          </div>
         </div>
         <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
           <div class="stat-card">
@@ -2133,7 +2137,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           </div>
           <div class="stat-card">
             <div class="icon warning"><i class="fa-solid fa-users"></i></div>
-            <div class="label" data-i18n="zones.totalCapacity">إجمالي السعة</div>
+            <div class="label" data-i18n="zones.activeCapacity">سعة المناطق المفعّلة</div>
             <div class="value num" id="zone-stat-capacity">0</div>
           </div>
         </div>
@@ -3029,6 +3033,9 @@ const I18N = {
     'zones.subtitle': 'حالة وسعة كل منطقة',
     'zones.edit': 'تعديل المنطقة',
     'zones.editTitle': 'تعديل المنطقة',
+    'zones.add': 'إضافة منطقة',
+    'zones.viewDate': 'تاريخ العرض',
+    'zones.activeCapacity': 'سعة المناطق المفعّلة',
     'zones.nameAr': 'الاسم (عربي)',
     'zones.nameEn': 'الاسم (إنجليزي)',
     'zones.capacity': 'السعة (أفراد)',
@@ -3423,6 +3430,9 @@ const I18N = {
     'zones.subtitle': 'Status and capacity of each zone',
     'zones.edit': 'Edit zone',
     'zones.editTitle': 'Edit zone',
+    'zones.add': 'Add zone',
+    'zones.viewDate': 'View date',
+    'zones.activeCapacity': 'Active capacity',
     'zones.nameAr': 'Name (Arabic)',
     'zones.nameEn': 'Name (English)',
     'zones.capacity': 'Capacity (guests)',
@@ -4904,7 +4914,7 @@ function renderZonesBars() {
   const container = document.getElementById('zones-bars');
   if (!container) return;
   container.innerHTML = zones.map(z => {
-    const zb = bookings.filter(b => b.zoneId === z.id && !b.cancelled);
+    const zb = bookings.filter(b => b.zoneId === z.id && !b.cancelled && b.date === zonesViewDate());
     const guests = zb.reduce((s,b) => s + (b.guests||0), 0);
     const pct = Math.min(100, Math.round((guests / z.capacity) * 100));
     const cls = pct < 70 ? 'low' : pct < 90 ? 'mid' : 'high';
@@ -5111,14 +5121,20 @@ function clearBookingSearch() {
 /* ============================================================
    ZONES PAGE
    ============================================================ */
+function zonesViewDate() {
+  return document.getElementById('zones-date')?.value || todayStr();
+}
 function renderZones() {
   const grid = document.getElementById('zones-grid');
   if (!grid) return;
+  const viewDate = zonesViewDate();
+  const addBtn = document.getElementById('zone-add-btn');
+  if (addBtn) addBtn.style.display = currentRole === 'admin' ? '' : 'none';
 
   // إحصائيات + أشرطة الإشغال
   const total = zones.length;
   const active = zones.filter(z => z.active).length;
-  const capacity = zones.reduce((s,z) => s + (z.capacity||0), 0);
+  const capacity = zones.filter(z => z.active).reduce((s,z) => s + (z.capacity||0), 0);
   const ts = document.getElementById('zone-stat-total'); if (ts) ts.textContent = total;
   const as = document.getElementById('zone-stat-active'); if (as) as.textContent = active;
   const cs = document.getElementById('zone-stat-capacity'); if (cs) cs.textContent = capacity;
@@ -5126,7 +5142,7 @@ function renderZones() {
   const barsEl = document.getElementById('zones-load-bars');
   if (barsEl) {
     barsEl.innerHTML = zones.map(z => {
-      const guests = bookings.filter(b=>b.zoneId===z.id).reduce((s,b)=>s+(b.guests||0),0);
+      const guests = bookings.filter(b=>b.zoneId===z.id && !b.cancelled && b.date===viewDate).reduce((s,b)=>s+(b.guests||0),0);
       const pct = z.capacity ? Math.min(100, Math.round(guests / z.capacity * 100)) : 0;
       const cls = pct < 70 ? 'low' : pct < 90 ? 'mid' : 'high';
       const color = `var(--${cls==='low'?'success':cls==='mid'?'warning':'danger'})`;
@@ -5144,7 +5160,7 @@ function renderZones() {
   }
   grid.style.gridColumn = '';
   grid.innerHTML = zones.map(z => {
-    const zb = bookings.filter(b => b.zoneId === z.id && !b.cancelled);
+    const zb = bookings.filter(b => b.zoneId === z.id && !b.cancelled && b.date === viewDate);
     const guests = zb.reduce((s,b) => s + (b.guests||0), 0);
     const pct = Math.min(100, Math.round((guests / z.capacity) * 100));
     const cls = pct < 70 ? 'low' : pct < 90 ? 'mid' : 'high';
@@ -5153,7 +5169,7 @@ function renderZones() {
         <div class="card-header">
           <div class="card-title"><i class="fa-solid fa-map-location-dot"></i> ${escapeHtml(zoneName(z))}</div>
           <div style="display:flex; align-items:center; gap:6px;">
-            ${currentRole === 'admin' ? `<button class="btn btn-ghost btn-sm zone-edit-btn" onclick="openZoneEdit('${jsSafe(z.id)}')" title="${t('zones.edit')}"><i class="fa-solid fa-pen-to-square"></i></button>` : ''}
+            ${currentRole === 'admin' ? `<button class="btn btn-ghost btn-sm zone-edit-btn" onclick="openZoneEdit('${jsSafe(z.id)}')" title="${t('zones.edit')}"><i class="fa-solid fa-pen-to-square"></i></button><button class="btn btn-ghost btn-sm" onclick="deleteZone('${jsSafe(z.id)}')" title="${currentLang === 'ar' ? 'حذف المنطقة' : 'Delete zone'}"><i class="fa-solid fa-trash" style="color:var(--danger);"></i></button>` : ''}
             <span class="badge ${z.active ? 'badge-success' : 'badge-pending'}" data-i18n="${z.active ? 'status.available' : 'status.closed'}">${z.active ? 'متاح' : 'مغلق'}</span>
           </div>
         </div>
@@ -5193,10 +5209,12 @@ function zeRenderPackages() {
       ondragleave="this.style.outline=''"
       ondrop="zeDrop(event,${i})"
       ondragend="this.style.outline=''"
-      style="display:grid;grid-template-columns:1fr 78px 24px 24px 24px 24px;gap:5px;align-items:center;${p.on ? '' : 'opacity:.5;'}">
+      style="display:grid;grid-template-columns:1fr 70px 20px 20px 20px 24px 24px 24px;gap:5px;align-items:center;${p.on ? '' : 'opacity:.5;'}">
       <span style="font-size:.78rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${p.on ? '' : 'text-decoration:line-through;'}">${escapeHtml(p.n)}</span>
       <span style="font-size:.72rem;color:var(--muted);text-align:center;">${p.p} ${cur()}</span>
       <button type="button" class="btn btn-ghost btn-sm" style="padding:0;cursor:grab;" title="Hold / reorder">⠿</button>
+      <button type="button" class="btn btn-ghost btn-sm" style="padding:0;" title="Up" onclick="zeMove(${i},-1)">↑</button>
+      <button type="button" class="btn btn-ghost btn-sm" style="padding:0;" title="Down" onclick="zeMove(${i},1)">↓</button>
       <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:${p.on ? 'var(--success)' : 'var(--danger)'};" title="${p.on ? 'Disable' : 'Enable'}" onclick="zePkgs[${i}].on=!zePkgs[${i}].on; zeRenderPackages();">${p.on ? '✓' : '✕'}</button>
       <button type="button" class="btn btn-ghost btn-sm" style="padding:0;" title="Edit" onclick="zeStartEdit(${i})">✎</button>
       <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:var(--danger);" title="Delete" onclick="zePkgs.splice(${i},1); zeRenderPackages();">🗑</button>
@@ -5218,7 +5236,61 @@ function zeDrop(e, i) {
   const [moved] = zePkgs.splice(zeDragFrom, 1);
   zePkgs.splice(i, 0, moved); zeDragFrom = null; zeRenderPackages();
 }
+// ترتيب باللمس (الـ drag مش شغّال على الموبايل)
+function zeMove(i, delta) {
+  const j = i + delta;
+  if (j < 0 || j >= zePkgs.length) return;
+  [zePkgs[i], zePkgs[j]] = [zePkgs[j], zePkgs[i]];
+  zeRenderPackages();
+}
 
+function nextZoneId() {
+  const maxNum = zones.reduce((m, z) => {
+    const n = parseInt((z.id || '').replace(/\D/g, ''), 10);
+    return isNaN(n) ? m : Math.max(m, n);
+  }, 0);
+  let seq = Math.max(Number(localStorage.getItem('rest_zone_seq')) || 0, maxNum) + 1;
+  try { localStorage.setItem('rest_zone_seq', String(seq)); } catch (e) {}
+  return 'Z' + seq;
+}
+function openZoneNew() {
+  if (currentRole !== 'admin') { toast(currentLang === 'ar' ? 'صلاحية الأدمين فقط' : 'Admin only', 'error'); return; }
+  document.getElementById('ze-id').value = '__new__';
+  document.getElementById('ze-name').value = '';
+  document.getElementById('ze-name-en').value = '';
+  document.getElementById('ze-capacity').value = 20;
+  document.getElementById('ze-deposit').value = 0;
+  zeEditing = null; zeDraft = null; zeDragFrom = null;
+  zePkgs = [50,80,120,100].map((p, i) => ({ n: t('pkg.' + (i + 1)), p, on: true }));
+  zeRenderPackages();
+  document.getElementById('ze-active').classList.add('on');
+  document.getElementById('zone-edit-modal').classList.add('open');
+}
+async function deleteZone(id) {
+  if (currentRole !== 'admin') { toast(currentLang === 'ar' ? 'صلاحية الأدمين فقط' : 'Admin only', 'error'); return; }
+  const used = bookings.filter(b => b.zoneId === id && !b.cancelled).length;
+  if (used) {
+    toast(currentLang === 'ar'
+      ? `المنطقة مستخدمة في ${used} حجز — عطّلها بدل الحذف`
+      : `Zone has ${used} active bookings — deactivate it instead of deleting`, 'warning');
+    return;
+  }
+  const ok = await confirmAction(
+    currentLang === 'ar' ? 'حذف المنطقة' : 'Delete zone',
+    currentLang === 'ar' ? 'حذف هذه المنطقة نهائياً؟' : 'Delete this zone permanently?'
+  );
+  if (!ok) return;
+  if (CLOUD.enabled && CLOUD.client) {
+    const { error } = await CLOUD.client.from('zones').delete().eq('id', id);
+    if (error) {
+      toast(error.message || (currentLang === 'ar' ? 'تعذّر حذف المنطقة من السحابة' : 'Could not delete zone from the cloud'), 'error');
+      return;
+    }
+  }
+  zones = zones.filter(z => z.id !== id);
+  saveData(); renderZones(); renderZoneCards(); renderDashboard();
+  toast(t('toast.deleted'), 'success');
+}
 function openZoneEdit(id) {
   if (currentRole !== 'admin') { toast(currentLang === 'ar' ? 'صلاحية الأدمين فقط' : 'Admin only', 'error'); return; }
   const z = zones.find(x => x.id === id);
@@ -5240,33 +5312,76 @@ function openZoneEdit(id) {
 }
 async function saveZoneEdit() {
   if (currentRole !== 'admin') { toast(currentLang === 'ar' ? 'صلاحية الأدمين فقط' : 'Admin only', 'error'); return; }
+  const ar = currentLang === 'ar';
   const id = document.getElementById('ze-id').value;
-  const z = zones.find(x => x.id === id);
-  if (!z) return;
+  const isNew = id === '__new__';
+  let z = isNew ? null : zones.find(x => x.id === id);
+  if (!isNew && !z) return;
   const capacity = Number(document.getElementById('ze-capacity').value);
   const deposit = Number(document.getElementById('ze-deposit').value);
-  if (!capacity || capacity < 1) { toast(currentLang === 'ar' ? 'أدخل سعة صحيحة' : 'Enter a valid capacity', 'error'); return; }
-  z.name = (document.getElementById('ze-name').value || '').trim() || z.name;
-  z.nameEn = (document.getElementById('ze-name-en').value || '').trim() || z.name;
+  if (!capacity || capacity < 1) { toast(ar ? 'أدخل سعة صحيحة' : 'Enter a valid capacity', 'error'); return; }
+  if (!zePkgs.length) { toast(ar ? 'أضف باكة واحدة على الأقل' : 'Add at least one package', 'error'); return; }
+  if (!zePkgs.some(p => p.on !== false)) { toast(ar ? 'لازم باكة واحدة مفعّلة على الأقل' : 'At least one package must be enabled', 'error'); return; }
+  const name = (document.getElementById('ze-name').value || '').trim();
+  const nameEn = (document.getElementById('ze-name-en').value || '').trim();
+  if (isNew && !name) { toast(ar ? 'اكتب اسم المنطقة' : 'Enter the zone name', 'error'); return; }
+  const nowActive = document.getElementById('ze-active').classList.contains('on');
+  if (!z) {
+    z = { id: nextZoneId(), name: '', nameEn: '', capacity: 0, minDeposit: 0, packages: [], packageNames: [], packageActive: [], active: true };
+    zones.push(z);
+  } else {
+    const minCapacity = zoneMaxBooked(z);
+    if (capacity < minCapacity) {
+      toast(ar
+        ? `السعة الجديدة (${capacity}) أقل من أعلى يوم محجوز (${minCapacity}) — أدخل ${minCapacity} أو أكتر`
+        : `New capacity (${capacity}) is below the busiest booked day (${minCapacity}) — enter ${minCapacity} or more`, 'error');
+      return;
+    }
+    if (z.active !== false && !nowActive) {
+      const used = bookings.filter(b => b.zoneId === z.id && !b.cancelled).length;
+      if (used) {
+        const ok = await confirmAction(ar ? 'تعطيل المنطقة' : 'Deactivate zone',
+          ar ? `المنطقة فيها ${used} حجز نشط — التعطيل مش هيلغيهم. متابعة؟`
+             : `Zone has ${used} active bookings — deactivation won't cancel them. Continue?`);
+        if (!ok) return;
+      }
+    }
+  }
+  z.name = name || z.name;
+  z.nameEn = nameEn || z.name;
   z.capacity = capacity;
   z.minDeposit = deposit >= 0 ? deposit : 0;
   z.packages = zePkgs.map(p => Math.max(0, Number(p.p) || 0));
   z.packageNames = zePkgs.map(p => p.n);
   z.packageActive = zePkgs.map(p => p.on !== false);
-  z.active = document.getElementById('ze-active').classList.contains('on');
+  z.active = nowActive;
+  let cloudFailed = false;
   if (CLOUD.enabled && CLOUD.client) {
     const { error } = await CLOUD.client.from('zones').upsert(zToDb(z));
-    if (error) { toast((currentLang === 'ar' ? 'فشل الحفظ: ' : 'Save failed: ') + error.message, 'error'); return; }
+    cloudFailed = !!error;
   }
   CLOUD.internalSave = true; saveData(); CLOUD.internalSave = false;
   closeModal('zone-edit-modal');
   renderZones(); renderZoneCards(); renderDashboard();
-  toast(t('toast.saved'), 'success');
+  if (cloudFailed) {
+    cloudWarn(ar ? 'تعذّر حفظ المنطقة في السحابة — اتحفظت محلياً' : 'Zone could not be saved to cloud — saved locally');
+    if (typeof cloudSchedulePush === 'function') cloudSchedulePush();
+    toast(ar ? 'اتحفظ محلياً — السحابة هتتزامن لاحقاً' : 'Saved locally — cloud will sync later', 'warning');
+  } else {
+    toast(t('toast.saved'), 'success');
+  }
 }
 
 /* ============================================================
    ZONE CARDS (selector in form)
    ============================================================ */
+// أعلى عدد محجوز في المنطقة في يوم واحد — السعة يومية، فالحد الأدنى للسعة هو أكبر يوم محجوز
+function zoneMaxBooked(z) {
+  const byDate = {};
+  bookings.filter(b => b.zoneId === z.id && !b.cancelled && b.date)
+    .forEach(b => { byDate[b.date] = (byDate[b.date] || 0) + (Number(b.guests) || 0); });
+  return Math.max(0, ...Object.values(byDate));
+}
 // المتاح فعلياً في المنطقة يوم الحجز (الحجز الملغي والحجز اللي بنعدّله مش محسوبين)
 function zoneRemaining(z, date = document.getElementById('b-date')?.value) {
   if (!z) return 0;
@@ -5312,7 +5427,7 @@ function selectZone(id) {
 // أسعار الباقات للمنطقة المختارة
 function packagePrices() {
   const z = zones.find(x => x.id === selectedZoneId);
-  return (z && Array.isArray(z.packages) && z.packages.length === 4) ? z.packages : [50,80,120,100];
+  return (z && Array.isArray(z.packages) && z.packages.length) ? z.packages : [50,80,120,100];
 }
 function renderPackageOptions(keepIndex) {
   const sel = document.getElementById('b-package');
@@ -8217,7 +8332,9 @@ async function cloudLoad() {
     if (br.data) bookings = nextB;
     if (gr.data) guests = nextG;
     if (zr.data && zr.data.length) zones = zr.data.map(zFromDb);
-    else if (zr.data && zr.data.length === 0 && ['admin', 'staff'].includes(currentRole)) {
+    else if (zr.data && zr.data.length === 0 && ['admin', 'staff'].includes(currentRole)
+      && localStorage.getItem('rest_zones_v2') === null) {
+      // نزرع الافتراضي أول مرة بس — لو الأدمين حذف كل المناطق ما نرجّعهمش
       await CLOUD.client.from('zones').upsert(zones.map(zToDb));
     }
     CLOUD.internalSave = true; saveData(); CLOUD.internalSave = false;
