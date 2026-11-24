@@ -1,7 +1,7 @@
 /* Gatz. Hub Service Worker — Network-first for HTML, Cache-first for assets */
 
-const STATIC_CACHE = 'gatz-hub-static-v9';
-const RUNTIME_CACHE = 'gatz-hub-runtime-v9';
+const STATIC_CACHE = 'gatz-hub-static-v10';
+const RUNTIME_CACHE = 'gatz-hub-runtime-v10';
 const PRECACHE = ['./restaurant-booking-v2.html', './gatz-word.png', './gatz-brand-icon.png', './gatz-badge.png', './gatz-notification-banner.png', './manifest.json'];
 
 // تثبيت: تحميل الملفات الأساسية مسبقاً
