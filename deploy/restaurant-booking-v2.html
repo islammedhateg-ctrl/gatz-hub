@@ -1642,11 +1642,11 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
             </div>
             <div class="input-icon-wrap" style="width:180px;">
               <i class="fa-solid fa-calendar-days lead-icon"></i>
-              <input class="input" type="date" id="filter-date" onchange="renderBookings()" aria-label="Date">
+              <input class="input" type="date" id="filter-date" onchange="onDateFilterChange('date')" aria-label="Date">
             </div>
             <div class="input-icon-wrap" style="width:180px;">
               <i class="fa-solid fa-calendar-range lead-icon"></i>
-              <input class="input" type="month" id="filter-month" onchange="renderBookings()" aria-label="Month">
+              <input class="input" type="month" id="filter-month" onchange="onDateFilterChange('month')" aria-label="Month">
             </div>
             <div class="input-icon-wrap" style="width:200px;">
               <i class="fa-solid fa-layer-group lead-icon"></i>
@@ -1673,6 +1673,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
               </select>
             </div>
             <span class="toolbar-count"><i class="fa-solid fa-list"></i> <span id="bookings-count">0</span></span>
+            <button class="btn btn-ghost btn-sm" onclick="clearBookingFilters()" title="Clear filters"><i class="fa-solid fa-eraser"></i> <span class="hide-mobile" data-i18n="filter.clear">مسح الفلاتر</span></button>
             <button class="btn btn-outline btn-sm" onclick="exportCSV()" title="Export CSV"><i class="fa-solid fa-file-csv"></i> <span class="hide-mobile" data-i18n="action.export">تصدير</span></button>
           </div>
         </div>
@@ -2896,6 +2897,7 @@ const I18N = {
     'filter.verified': 'معتمد',
     'filter.pending': 'معلّق',
     'filter.allMethods': 'جميع الطرق',
+    'filter.clear': 'مسح الفلاتر',
     'search.bookings': 'بحث بالاسم/ID/هاتف...',
     'search.noResults': 'لا توجد نتائج',
     'sort.newest': 'الأحدث',
@@ -3283,6 +3285,7 @@ const I18N = {
     'filter.verified': 'Verified',
     'filter.pending': 'Pending',
     'filter.allMethods': 'All Methods',
+    'filter.clear': 'Clear filters',
     'search.bookings': 'Search name/ID/phone...',
     'search.noResults': 'No results found',
     'sort.newest': 'Newest',
@@ -4967,12 +4970,15 @@ function getFilteredBookings() {
   const filterZone = document.getElementById('filter-zone')?.value;
   const filterStatus = document.getElementById('filter-status')?.value;
   const search = (document.getElementById('bookings-search')?.value || '').toLowerCase().trim();
+  const phoneSearch = normalizeEgyptPhone(search);
   const sort = document.getElementById('bookings-sort')?.value || 'newest';
+  const order = new WeakMap();
+  bookings.forEach((b, i) => order.set(b, i)); // ترتيب الإضافة: الأحدث في أول المصفوفة
   let list = [...bookings];
   if (filterDate) list = list.filter(b => b.date === filterDate);
   if (filterMonth) list = list.filter(b => (b.date || '').startsWith(filterMonth));
   if (filterZone) list = list.filter(b => b.zoneId === filterZone);
-  if (filterStatus === 'verified') list = list.filter(b => b.verified);
+  if (filterStatus === 'verified') list = list.filter(b => b.verified && !b.cancelled);
   if (filterStatus === 'pending') list = list.filter(b => !b.verified && !b.cancelled);
   if (filterStatus === 'cancelled') list = list.filter(b => b.cancelled);
   if (search) {
@@ -4981,14 +4987,25 @@ function getFilteredBookings() {
       (b.id || '').toLowerCase().includes(search) ||
       (b.phone || '').includes(search) ||
       (b.whatsapp || '').includes(search) ||
-      (b.type || '').toLowerCase().includes(search)
+      (b.type || '').toLowerCase().includes(search) ||
+      (phoneSearch && normalizeEgyptPhone(b.phone).includes(phoneSearch)) ||
+      (phoneSearch && normalizeEgyptPhone(b.whatsapp).includes(phoneSearch))
     );
   }
-  if (sort === 'newest') list.sort((a, b) => (b.date + b.start).localeCompare(a.date + a.start));
-  else if (sort === 'oldest') list.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
-  else if (sort === 'name') list.sort((a, b) => (a.name || '').localeCompare(b.name || '', currentLang === 'ar' ? 'ar' : 'en'));
-  else if (sort === 'guests') list.sort((a, b) => (b.guests || 0) - (a.guests || 0));
+  const when = b => `${b.date || ''}${b.start || ''}`;
+  if (sort === 'newest') list.sort((a, b) => when(b).localeCompare(when(a)) || (order.get(a) - order.get(b)));
+  else if (sort === 'oldest') list.sort((a, b) => when(a).localeCompare(when(b)) || (order.get(b) - order.get(a)));
+  else if (sort === 'name') list.sort((a, b) => (a.name || '').localeCompare(b.name || '', currentLang === 'ar' ? 'ar' : 'en') || (order.get(a) - order.get(b)));
+  else if (sort === 'guests') list.sort((a, b) => (b.guests || 0) - (a.guests || 0) || (order.get(a) - order.get(b)));
   return list;
+}
+// التاريخ والشهر لا يعملان معاً — اختيار واحد يمسح الآخر
+function onDateFilterChange(which) {
+  const dateEl = document.getElementById('filter-date');
+  const monthEl = document.getElementById('filter-month');
+  if (which === 'date' && dateEl?.value && monthEl) monthEl.value = '';
+  if (which === 'month' && monthEl?.value && dateEl) dateEl.value = '';
+  renderBookings();
 }
 
 // الذهاب للحجوزات مع/fltr "ملغي" مُفعّل مباشرة
@@ -5003,14 +5020,13 @@ function renderBookings() {
   const wrap = document.getElementById('bookings-table-wrap');
   if (!wrap) return;
   const list = getFilteredBookings();
-  // populate zone filter
+  // populate zone filter — يتحدّث مع كل رسم عشان الإضافة/الحذف/التسمية تظهر فوراً
   const zSel = document.getElementById('filter-zone');
-  if (zSel && zSel.options.length <= 1) {
-    zones.forEach(z => {
-      const o = document.createElement('option');
-      o.value = z.id; o.textContent = zoneName(z);
-      zSel.appendChild(o);
-    });
+  if (zSel) {
+    const chosen = zSel.value;
+    zSel.innerHTML = `<option value="" data-i18n="filter.allZones">${t('filter.allZones')}</option>` +
+      zones.map(z => `<option value="${escapeHtml(z.id)}">${escapeHtml(zoneName(z))}</option>`).join('');
+    zSel.value = zones.some(z => z.id === chosen) ? chosen : '';
   }
   // search clear button visibility
   const searchInput = document.getElementById('bookings-search');
@@ -5030,6 +5046,16 @@ function clearBookingSearch() {
     input.closest('.input-icon-wrap')?.classList.remove('has-value');
     input.focus();
   }
+  renderBookings();
+}
+function clearBookingFilters() {
+  ['bookings-search', 'filter-date', 'filter-month', 'filter-zone', 'filter-status'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const sort = document.getElementById('bookings-sort');
+  if (sort) sort.value = 'newest';
+  document.getElementById('bookings-search')?.closest('.input-icon-wrap')?.classList.remove('has-value');
   renderBookings();
 }
 
@@ -6930,6 +6956,8 @@ function renderCalendarDayInfo(dateStr) {
 function showDayInBookings(dateStr) {
   showTab('bookings', document.querySelector('[data-tab=bookings]'));
   const fd = document.getElementById('filter-date');
+  const fm = document.getElementById('filter-month');
+  if (fm) fm.value = '';
   if (fd) { fd.value = dateStr; renderBookings(); }
 }
 
@@ -8012,11 +8040,9 @@ function importBackup(event) {
 
 function exportCSV() {
   const headers = ['ID','Name','Phone','WhatsApp','Type','Zone','Guests','CheckedIn','Date','Start','End','Deposit','Payment','Verified'];
-  // تصدير النتائج المفلترة إذا كنا في صفحة الحجوزات، وإلا كل الحجوزات
-  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab');
-  const list = (activeTab === 'bookings') ? getFilteredBookings() : bookings;
-  const rows = list.map(b => [b.id,b.name,b.phone,b.whatsapp,b.type,b.zoneId,b.guests,b.checkedIn,b.date,b.start,b.end,b.deposit,b.payment,b.verified]);
-  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  // التصدير دايماً كل الحجوزات (مش النتائج المفلترة) — BOM عشان Excel يقرأ العربي صح
+  const rows = bookings.map(b => [b.id,b.name,b.phone,b.whatsapp,b.type,b.zoneId,b.guests,b.checkedIn,b.date,b.start,b.end,b.deposit,b.payment,b.verified]);
+  const csv = '\uFEFF' + [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
