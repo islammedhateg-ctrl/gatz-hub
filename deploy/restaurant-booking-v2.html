@@ -1950,15 +1950,17 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                     <input class="input" type="text" id="b-start-display" readonly onclick="toggleTimePopup('start')" aria-label="Arrival Time">
                     <input type="hidden" id="b-start" value="18:00" data-required="1">
                     <div class="time-popup" id="time-popup-start" style="display:none;"></div>
+                    <div class="helper" id="start-hint"></div>
                   </div>
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.end">وقت المغادرة <span class="req">*</span></label>
                   <div class="has-icon" style="position:relative;">
                     <i class="fa-solid fa-clock-rotate-left field-icon"></i>
-                    <input class="input" type="text" id="b-end-display" readonly onclick="toggleTimePopup('end')" aria-label="Departure Time">
-                    <input type="hidden" id="b-end" value="22:00" data-required="1">
+                    <input class="input" type="text" id="b-end-display" readonly aria-label="Departure Time">
+                    <input type="hidden" id="b-end" value="00:00" data-required="1">
                     <div class="time-popup" id="time-popup-end" style="display:none;"></div>
+                    <div class="helper" id="end-hint"></div>
                   </div>
                 </div>
                 <div class="form-group">
@@ -3964,8 +3966,7 @@ function loadDraft() {
   document.getElementById('b-type').value = d.type || 'أخرى';
   document.getElementById('b-guests').value = d.guests || 10;
   document.getElementById('b-start').value = d.start || '18:00';
-  document.getElementById('b-end').value = d.end || '22:00';
-  refreshTimeDisplays();
+  refreshHoursHints();
   document.getElementById('b-deposit').value = d.deposit || 500;
   selectedZoneId = d.zoneId || null;
   renderPackageOptions(d.packageIndex || 0);
@@ -4504,7 +4505,7 @@ window.onload = async () => {
   const today = dateIso();
   const bd = document.getElementById('b-date');
   if (bd) { bd.value = today; bd.min = today; }
-  updateDateMin(); refreshDateDisplay();
+  updateDateMin(); refreshDateDisplay(); refreshHoursHints();
   document.getElementById('set-account-number').value = accountNumber;
   const puInit = document.getElementById('set-public-url'); if (puInit) puInit.value = publicAppUrl;
   document.getElementById('display-account-num').innerText = accountNumber;
@@ -5463,6 +5464,43 @@ function toggleDatePopup() {
   popup.style.display = show ? 'block' : 'none';
 }
 let timeTarget = null, timeHour = 6, timeMinute = 0, timePeriod = 'PM';
+// ساعات العمل: وصول ١٠ صباحاً → ١١:٥٩ مساءً، ومغادرة ١٢ أو ١ صباحاً حسب نوع اليوم
+function timeMinutes(v) {
+  const p = String(v || '').split(':');
+  return (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0);
+}
+function bookingSpan(start, end) {
+  const s = timeMinutes(start);
+  let e = timeMinutes(end);
+  if (e <= s) e += 1440; // مغادرة بعد نص الليل
+  return [s, e];
+}
+function spansOverlap(aStart, aEnd, bStart, bEnd) {
+  const [as, ae] = bookingSpan(aStart, aEnd);
+  const [bs, be] = bookingSpan(bStart, bEnd);
+  return as < be && ae > bs;
+}
+function autoEndForDate() {
+  const bd = document.getElementById('b-date');
+  if (!bd || !bd.value) return '';
+  const p = dateParts(bd.value);
+  if (!p.y || !p.m || !p.d) return '';
+  const dow = new Date(p.y, p.m - 1, p.d).getDay();
+  const end = dow > 3 ? '01:00' : '00:00'; // خميس-سبت = نهاية أسبوع، الباقي أيام عمل
+  const el = document.getElementById('b-end');
+  if (el) el.value = end;
+  refreshTimeDisplays();
+  const eh = document.getElementById('end-hint');
+  if (eh) eh.textContent = currentLang === 'ar'
+    ? (end === '00:00' ? 'المغادرة ١٢ صباحاً (يوم عمل)' : 'المغادرة ١ صباحاً (نهاية أسبوع)')
+    : (end === '00:00' ? 'Departure 12:00 AM (weekday)' : 'Departure 1:00 AM (weekend)');
+  return end;
+}
+function refreshHoursHints() {
+  const sh = document.getElementById('start-hint');
+  if (sh) sh.textContent = currentLang === 'ar' ? 'الوصول من ١٠ صباحاً لـ ١١:٥٩ مساءً' : 'Arrival 10:00 AM – 11:59 PM';
+  autoEndForDate();
+}
 function timeTo12(v) {
   const p = String(v || '18:00').split(':');
   const h = Number(p[0]) || 0, m = Number(p[1]) || 0;
@@ -5538,6 +5576,7 @@ function checkBookingDate() {
   const valid = bd.value && bd.value >= todayStr();
   bd.setAttribute('aria-invalid', valid ? 'false' : 'true');
   if (warn) warn.textContent = (bd.value && !valid) ? (currentLang === 'ar' ? '⚠ لا يمكن حجز تاريخ ماضٍ' : '⚠ Past dates are not allowed') : '';
+  autoEndForDate();
   renderZoneCards();
   return valid;
 }
@@ -5678,8 +5717,13 @@ function nextStep() {
       toast(currentLang === 'ar' ? 'لا يمكن حجز تاريخ ماضٍ' : 'Past dates are not allowed', 'error');
       return;
     }
+    const sMin = timeMinutes(start);
+    if (sMin < 600 || sMin > 1439) {
+      toast(currentLang === 'ar' ? 'الوصول من ١٠ صباحاً لـ ١١:٥٩ مساءً' : 'Arrival must be 10:00 AM – 11:59 PM', 'error');
+      return;
+    }
     // conflict check
-    const conflict = bookings.find(b => b.id !== editingBookingId && !b.cancelled && b.zoneId === selectedZoneId && b.date === date && (start < b.end && end > b.start));
+    const conflict = bookings.find(b => b.id !== editingBookingId && !b.cancelled && b.zoneId === selectedZoneId && b.date === date && spansOverlap(start, end, b.start, b.end));
     if (conflict) {
       confirmAction('تعارض حجز', `Zone محجوزة لـ ${conflict.name} (${conflict.start}-${conflict.end}). متابعة؟`).then(ok => {
         if (ok) { currentStep = 3; updateStepper(); }
@@ -5771,6 +5815,11 @@ function saveBooking() {
     toast(currentLang === 'ar' ? 'المنطقة لا تتسع لهذا العدد' : 'Zone capacity exceeded', 'error');
     checkZoneCapacity(); return;
   }
+  const sMin = timeMinutes(start);
+  if (sMin < 600 || sMin > 1439) {
+    toast(currentLang === 'ar' ? 'الوصول من ١٠ صباحاً لـ ١١:٥٩ مساءً' : 'Arrival must be 10:00 AM – 11:59 PM', 'error');
+    return;
+  }
   if (payment === 'تحويل لحظي' && !currentReceiptBase64) {
     toast(t('toast.error'), 'error'); return;
   }
@@ -5821,8 +5870,7 @@ function saveBooking() {
   document.getElementById('b-date').value = todayStr();
   refreshDateDisplay();
   document.getElementById('b-start').value = '18:00';
-  document.getElementById('b-end').value = '22:00';
-  refreshTimeDisplays();
+  refreshHoursHints();
   document.getElementById('b-guests').value = 10;
   document.getElementById('b-deposit').value = 500;
   document.getElementById('transfer-box').style.display = 'none';
@@ -6210,8 +6258,7 @@ function editBooking(id) {
   document.getElementById('b-type').value = b.type || 'أخرى';
   document.getElementById('b-guests').value = b.guests || 1;
   document.getElementById('b-start').value = b.start || '18:00';
-  document.getElementById('b-end').value = b.end || '22:00';
-  refreshTimeDisplays();
+  refreshHoursHints();
   document.getElementById('b-deposit').value = b.deposit || 0;
   selectedZoneId = b.zoneId;
   renderPackageOptions(b.packageIndex != null ? b.packageIndex : 0);
@@ -8205,7 +8252,7 @@ async function cloudRestore() {
 // تهيئة حقول الباقة والتاريخ والوقت في نموذج الحجز
 renderPackageOptions();
 refreshDateDisplay();
-refreshTimeDisplays();
+refreshHoursHints();
 document.addEventListener('click', function (e) {
   const dp = document.getElementById('date-popup');
   const dd = document.getElementById('b-date-display');
