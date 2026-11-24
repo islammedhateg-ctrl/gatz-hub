@@ -6813,7 +6813,7 @@ function deleteBooking(id) {
       saveData();
       if (b) {
         addNotification('cancelled', t('notif.cancelled'), `${b.name} — ${id}`, id);
-        sendBookingPush('updated', bookingPushData(b));
+        sendBookingPush('cancelled', bookingPushData(b));
       }
       renderAll();
       renderBookings();
