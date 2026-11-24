@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+if (location.protocol === 'http:' && !['127.0.0.1','localhost'].includes(location.hostname)) {
+  location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+}
+</script>
 <title>Gatz. Hub Reservation — v2</title>
 <link rel="icon" type="image/png" href="gatz-brand-icon.png">
 <link rel="apple-touch-icon" href="gatz-brand-icon.png">
