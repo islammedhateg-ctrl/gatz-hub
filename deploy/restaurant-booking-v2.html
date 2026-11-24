@@ -799,40 +799,34 @@ select.input option:checked { background: var(--primary-soft); color: var(--prim
 .date-chip { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 99px; padding: 6px 11px; font-size: .72rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .date-chip.on { background: var(--primary); border-color: var(--primary); color: #fff; }
 .date-sep { height: 1px; background: var(--border); margin: 11px 0; }
-.date-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-.date-day { border: 1px solid var(--border); border-radius: 9px; text-align: center; padding: 8px 2px; cursor: pointer; }
-.date-day b { display: block; font-size: 1rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.date-day span { font-size: .6rem; color: var(--muted); }
-.date-day.on { background: var(--primary); border-color: var(--primary); color: #fff; }
-.date-day.on span { color: #fff; opacity: .85; }
-.date-more { text-align: center; font-size: .7rem; color: var(--primary); font-weight: 800; margin-top: 10px; cursor: pointer; }
-.date-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border); font-size: .68rem; color: var(--muted); }
-.date-foot b { color: var(--primary); }
-.date-month { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.date-month div { text-align: center; padding: 6px 2px; border-radius: 6px; font-size: .7rem; cursor: pointer; }
-.date-month div.off { opacity: .3; cursor: not-allowed; }
-.date-month div.on { background: var(--primary); color: #fff; font-weight: 800; }
-.date-month .wd { font-size: .6rem; color: var(--muted); cursor: default; }
-/* عجلة الوقت */
+/* ٤ كروت ظاهرة للاختيار — تاريخ ووقت */
+.pick-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+.pick-arrow {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: 9px; width: 32px; height: 32px; display: inline-flex; align-items: center;
+  justify-content: center; cursor: pointer; font-weight: 900; flex: none; font-size: 1.05rem;
+}
+.pick-arrow:hover { border-color: var(--primary); color: var(--primary); }
+.pick-title { font-size: .76rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.pick-card {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 10px;
+  padding: 9px 3px; text-align: center; cursor: pointer; min-width: 0; transition: .15s;
+}
+.pick-card:hover { border-color: var(--primary); }
+.pick-card b { display: block; font-size: 1rem; line-height: 1.15; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-card span { display: block; font-size: .58rem; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-card.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.pick-card.on span { color: #fff; opacity: .85; }
+.pick-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--border); font-size: .68rem; color: var(--muted); }
+.pick-foot b { color: var(--primary); }
+@media (max-width: 480px) { .pick-grid { gap: 4px; } .pick-card { padding: 8px 2px; } .pick-card b { font-size: .9rem; } }
+/* نافذة الوقت — نفس فكرة الـ ٤ كروت */
 .time-popup {
   position: absolute; z-index: 700; top: calc(100% + 4px); inset-inline-start: 0; inset-inline-end: 0;
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
   box-shadow: var(--shadow-lg); padding: 12px; min-width: 260px;
 }
-.time-wheel { position: relative; display: grid; grid-template-columns: 1fr 1fr 70px; gap: 8px; height: 150px; overflow: hidden; }
-.time-wheel::before, .time-wheel::after { content: ''; position: absolute; left: 0; right: 0; height: 48px; z-index: 2; pointer-events: none; }
-.time-wheel::before { top: 0; background: linear-gradient(var(--surface), transparent); }
-.time-wheel::after { bottom: 0; background: linear-gradient(transparent, var(--surface)); }
-.tw-col { overflow-y: auto; text-align: center; scrollbar-width: none; }
-.tw-col::-webkit-scrollbar { display: none; }
-.tw-col div { height: 48px; line-height: 48px; font-size: .95rem; color: var(--muted); font-variant-numeric: tabular-nums; cursor: pointer; }
-.tw-col div.on { color: var(--primary); font-weight: 800; font-size: 1.1rem; background: var(--primary-soft); border-radius: 9px; margin: 0 6px; }
-.tw-band { position: absolute; top: 51px; left: 6px; right: 6px; height: 48px; border-top: 1.5px solid var(--primary); border-bottom: 1.5px solid var(--primary); border-radius: 9px; pointer-events: none; opacity: .35; }
-.tw-ampm { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
-.tw-ampm div { border: 1px solid var(--border); border-radius: 9px; padding: 10px; text-align: center; font-size: .8rem; font-weight: 800; cursor: pointer; }
-.tw-ampm div.on { background: var(--primary); border-color: var(--primary); color: #fff; }
-.tw-foot { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border); font-size: .68rem; color: var(--muted); }
-.tw-foot b { color: var(--primary); }
 .input::placeholder { color: var(--muted-2); }
 .helper { font-size: .75rem; color: var(--muted); }
 .helper.error { color: var(--danger); }
@@ -1947,7 +1941,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                   <label data-i18n="field.end">وقت المغادرة <span class="req">*</span></label>
                   <div class="has-icon" style="position:relative;">
                     <i class="fa-solid fa-clock-rotate-left field-icon"></i>
-                    <input class="input" type="text" id="b-end-display" readonly aria-label="Departure Time">
+                    <input class="input" type="text" id="b-end-display" readonly onclick="toggleTimePopup('end')" aria-label="Departure Time">
                     <input type="hidden" id="b-end" value="00:00" data-required="1">
                     <div class="time-popup" id="time-popup-end" style="display:none;"></div>
                     <div class="helper" id="end-hint"></div>
@@ -5470,7 +5464,7 @@ function todayStr() { return dateIso(); }
 // الحجز المنتهي: تاريخه قبل اليوم (يظل في السجل لكن لا يُسمح بدخوله)
 function isBookingExpired(b) { return !!b && !!b.date && b.date < todayStr(); }
 function expiredLabel() { return currentLang === 'ar' ? 'منتهي' : 'Expired'; }
-let dateMode = 'weekday', dateFullMonth = false;
+let dateMode = 'weekday', dateFullMonth = false, dateOffset = 0;
 const dateDaysAR = ['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
 const dateDaysEN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const dateMonthsAR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
@@ -5508,6 +5502,13 @@ function dateRemainingDays(mode) {
   }
   return out;
 }
+// معاينة ٤ كروت للتاريخ — الضغط يختار والأسهم ينقلوا للمجموعة اللي بعدها
+function datePageOffset(iso) {
+  const p = dateParts(iso);
+  const list = dateRemainingDays(dateMode);
+  const i = Math.max(0, list.indexOf(p.d));
+  return Math.min(Math.max(0, list.length - 4), Math.floor(i / 4) * 4);
+}
 function renderDatePopup() {
   const host = document.getElementById('date-popup');
   if (!host) return;
@@ -5520,30 +5521,23 @@ function renderDatePopup() {
     : ['Week days','Weekend','All (ordered)'];
   const modes = ['weekday','weekend','all'];
   const chips = labels.map((l, i) => `<span class="date-chip ${modes[i] === dateMode ? 'on' : ''}" onclick="setDateMode('${modes[i]}')">${l}</span>`).join('');
-  let body;
-  if (dateFullMonth) {
-    const last = new Date(p.y, p.m, 0).getDate();
-    const today = dateParts(todayStr());
-    const wd = days.map(n => `<div class="wd">${n.slice(0, 3)}</div>`).join('');
-    let cells = '';
-    for (let d = 1; d <= last; d++) {
-      const key = `${p.y}-${String(p.m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const past = p.y < today.y || (p.y === today.y && (p.m < today.m || (p.m === today.m && d < today.d)));
-      cells += `<div class="${past ? 'off' : ''} ${key === iso ? 'on' : ''}" onclick="${past ? '' : `pickDate('${key}')`}">${d}</div>`;
-    }
-    body = `<div class="date-month">${wd}${cells}</div>`;
-  } else {
-    const list = dateRemainingDays(dateMode);
-    body = `<div class="date-strip">${list.map(d => {
-      const key = `${p.y}-${String(p.m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const dow = new Date(p.y, p.m - 1, d).getDay();
-      return `<div class="date-day ${key === iso ? 'on' : ''}" onclick="pickDate('${key}')"><b>${d}</b><span>${days[dow].slice(0, 3)}</span></div>`;
-    }).join('') || `<div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:.72rem;">${currentLang === 'ar' ? 'لا توجد أيام متبقية' : 'No days left'}</div>`}</div>`;
-  }
+  const list = dateRemainingDays(dateMode);
+  dateOffset = Math.min(Math.max(0, list.length - 4), Math.max(0, dateOffset));
+  const cards = list.slice(dateOffset, dateOffset + 4).map(d => {
+    const key = `${p.y}-${String(p.m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(p.y, p.m - 1, d).getDay();
+    return `<div class="pick-card ${key === iso ? 'on' : ''}" onclick="pickDate('${key}')"><b>${d}</b><span>${days[dow].slice(0, 3)}</span></div>`;
+  }).join('') || `<div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:.72rem;">${currentLang === 'ar' ? 'لا توجد أيام متبقية' : 'No days left'}</div>`;
   const nav = `<div class="date-nav"><span onclick="changeBookingMonth(-1)" title="${currentLang === 'ar' ? 'الشهر السابق' : 'Previous month'}">‹</span><b>${p.y} / ${String(p.m).padStart(2, '0')}</b><span onclick="changeBookingMonth(1)" title="${currentLang === 'ar' ? 'الشهر التالي' : 'Next month'}">›</span></div>`;
-  host.innerHTML = `${nav}<div class="date-chips">${chips}</div><div class="date-sep"></div>${body}
-    <div class="date-more" onclick="dateFullMonth=!dateFullMonth; renderDatePopup()">${dateFullMonth ? (currentLang === 'ar' ? '‹ شريط الأيام' : '‹ Day strip') : (currentLang === 'ar' ? '▤ تقويم كامل (شهر)' : '▤ Full month calendar')}</div>
-    <div class="date-foot"><span>${currentLang === 'ar' ? 'الأيام الفاتتة مستبعدة' : 'Past days excluded'}</span><span>${currentLang === 'ar' ? 'المختار' : 'Selected'}: <b>${formatDateLabel(iso)}</b></span></div>`;
+  const head = `<div class="pick-head"><span class="pick-arrow" onclick="shiftDateGroup(-1)">‹</span><span class="pick-title">${months[p.m - 1]} ${p.y}</span><span class="pick-arrow" onclick="shiftDateGroup(1)">›</span></div>`;
+  host.innerHTML = `${nav}<div class="date-chips">${chips}</div><div class="date-sep"></div>${head}<div class="pick-grid">${cards}</div>
+    <div class="pick-foot"><span>${currentLang === 'ar' ? 'اضغط لاختيار اليوم' : 'Tap a day to select'}</span><span>${currentLang === 'ar' ? 'المختار' : 'Selected'}: <b>${formatDateLabel(iso)}</b></span></div>`;
+}
+function shiftDateGroup(delta) {
+  const list = dateRemainingDays(dateMode);
+  if (!list.length) return;
+  dateOffset = Math.min(Math.max(0, list.length - 4), Math.max(0, dateOffset + delta * 4));
+  renderDatePopup();
 }
 function changeBookingMonth(delta) {
   const el = document.getElementById('b-date');
@@ -5555,6 +5549,7 @@ function changeBookingMonth(delta) {
   const maxD = new Date(y, m, 0).getDate();
   const d = Math.min(p.d || 1, maxD);
   if (el) el.value = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  dateOffset = 0;
   refreshDateDisplay();
   checkBookingDate();
   renderDatePopup();
@@ -5569,11 +5564,16 @@ function setDateMode(m) {
     const el = document.getElementById('b-date'); if (el) el.value = key;
     refreshDateDisplay();
   }
+  dateOffset = datePageOffset(document.getElementById('b-date')?.value || iso);
   renderDatePopup();
 }
 function pickDate(iso) {
   const el = document.getElementById('b-date');
   if (el) { el.value = iso; el.dispatchEvent(new Event('change', { bubbles: true })); }
+  const p = dateParts(iso);
+  const dow = new Date(p.y, p.m - 1, p.d).getDay();
+  dateMode = dow > 3 ? 'weekend' : 'weekday'; // الشريط دايماً يعرض نوع اليوم المختار
+  dateOffset = datePageOffset(iso);
   refreshDateDisplay();
   const popup = document.getElementById('date-popup');
   if (popup) popup.style.display = 'none';
@@ -5582,10 +5582,13 @@ function toggleDatePopup() {
   const popup = document.getElementById('date-popup');
   if (!popup) return;
   const show = popup.style.display === 'none';
-  if (show) { dateFullMonth = false; renderDatePopup(); }
+  if (show) {
+    dateFullMonth = false;
+    dateOffset = datePageOffset(document.getElementById('b-date')?.value || todayStr());
+    renderDatePopup();
+  }
   popup.style.display = show ? 'block' : 'none';
 }
-let timeTarget = null, timeHour = 6, timeMinute = 0, timePeriod = 'PM';
 // ساعات العمل: وصول ١٠ صباحاً → ١١:٥٩ مساءً، ومغادرة ١٢ أو ١ صباحاً حسب نوع اليوم
 function timeMinutes(v) {
   const p = String(v || '').split(':');
@@ -5640,38 +5643,53 @@ function refreshTimeDisplays() {
     if (el) el.value = formatTimeDisplay(document.getElementById('b-' + k).value);
   });
 }
+// معاينة ٤ أوقات — الضغط يختار والأسهم ينقلوا للمجموعة اللي بعدها
+let timeTarget = null, timeOffset = 0;
+function timeSlots(target) {
+  const slots = [];
+  for (let m = 600; m <= 1439; m += 30) {
+    slots.push(String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'));
+  }
+  if (target === 'end') slots.push('00:00', '01:00'); // مغادرة بعد نص الليل
+  return slots;
+}
+function timePageOffset(target) {
+  const slots = timeSlots(target);
+  const i = Math.max(0, slots.indexOf(document.getElementById('b-' + target)?.value));
+  return Math.min(Math.max(0, slots.length - 4), Math.floor(i / 4) * 4);
+}
 function renderTimePopup() {
   if (!timeTarget) return;
   const host = document.getElementById('time-popup-' + timeTarget);
   if (!host) return;
-  const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
-  const mins = Array.from({ length: 12 }, (_, i) => i * 5);
-  if (!mins.includes(timeMinute)) mins.push(timeMinute);
-  mins.sort((a, b) => a - b);
-  // 12 صباحاً = 00:00 — نعرضها 12 في عجلة الساعات مع AM عشان ما تضيعش من التظليل
-  const selectedHour = String((timeHour % 12) || 12).padStart(2, '0');
-  const selectedMin = String(timeMinute).padStart(2, '0');
-  host.innerHTML = `<div class="time-wheel"><div class="tw-band"></div>
-    <div class="tw-col">${hours.map(h => `<div class="${h === selectedHour ? 'on' : ''}" onclick="setTimeHour('${h}')">${h}</div>`).join('')}</div>
-    <div class="tw-col">${mins.map(m => { const s = String(m).padStart(2,'0'); return `<div class="${s === selectedMin ? 'on' : ''}" onclick="setTimeMinute('${m}')">${s}</div>`; }).join('')}</div>
-    <div class="tw-ampm"><div class="${timePeriod === 'AM' ? 'on' : ''}" onclick="setTimePeriod('AM')">AM</div><div class="${timePeriod === 'PM' ? 'on' : ''}" onclick="setTimePeriod('PM')">PM</div></div>
-  </div><div class="tw-foot"><span>${currentLang === 'ar' ? 'اسحب أو اضغط للاختيار' : 'Scroll or tap to select'}</span><span>${currentLang === 'ar' ? 'المختار' : 'Selected'}: <b>${formatTimeDisplay(document.getElementById('b-' + timeTarget).value)} (${document.getElementById('b-' + timeTarget).value})</b></span></div>`;
-  host.querySelectorAll('.tw-col').forEach(c => {
-    const on = c.querySelector('.on');
-    if (on) c.scrollTop = Math.max(0, on.offsetTop - c.clientHeight / 2 + 24);
-  });
+  const slots = timeSlots(timeTarget);
+  const cur = document.getElementById('b-' + timeTarget).value;
+  timeOffset = Math.min(Math.max(0, slots.length - 4), Math.max(0, timeOffset));
+  const cards = slots.slice(timeOffset, timeOffset + 4).map(v =>
+    `<div class="pick-card ${v === cur ? 'on' : ''}" onclick="pickTime('${v}')"><b>${formatTimeDisplay(v)}</b><span>${v}</span></div>`
+  ).join('');
+  const title = timeTarget === 'start'
+    ? (currentLang === 'ar' ? 'وقت الوصول' : 'Arrival time')
+    : (currentLang === 'ar' ? 'وقت المغادرة' : 'Departure time');
+  const head = `<div class="pick-head"><span class="pick-arrow" onclick="shiftTimeGroup(-1)">‹</span><span class="pick-title">${title}</span><span class="pick-arrow" onclick="shiftTimeGroup(1)">›</span></div>`;
+  host.innerHTML = `${head}<div class="pick-grid">${cards}</div>
+    <div class="pick-foot"><span>${currentLang === 'ar' ? 'اضغط لاختيار الوقت' : 'Tap a time to select'}</span><span>${currentLang === 'ar' ? 'المختار' : 'Selected'}: <b>${formatTimeDisplay(cur)} (${cur})</b></span></div>`;
 }
-function setTimeHour(h) { timeHour = Number(h); commitTime(); }
-function setTimeMinute(m) { timeMinute = Number(m); commitTime(); }
-function setTimePeriod(p) { timePeriod = p; commitTime(); }
-function commitTime() {
-  let h = timeHour % 12;
-  if (timePeriod === 'PM') h += 12;
-  const iso = String(h).padStart(2, '0') + ':' + String(timeMinute).padStart(2, '0');
-  const el = document.getElementById('b-' + timeTarget);
-  if (el) el.value = iso;
-  refreshTimeDisplays();
+function shiftTimeGroup(delta) {
+  if (!timeTarget) return;
+  const slots = timeSlots(timeTarget);
+  if (!slots.length) return;
+  timeOffset = Math.min(Math.max(0, slots.length - 4), Math.max(0, timeOffset + delta * 4));
   renderTimePopup();
+}
+function pickTime(v) {
+  if (!timeTarget) return;
+  const el = document.getElementById('b-' + timeTarget);
+  if (el) el.value = v;
+  refreshTimeDisplays();
+  const host = document.getElementById('time-popup-' + timeTarget);
+  if (host) host.style.display = 'none';
+  timeTarget = null;
 }
 function toggleTimePopup(target) {
   const host = document.getElementById('time-popup-' + target);
@@ -5680,8 +5698,7 @@ function toggleTimePopup(target) {
   ['start','end'].forEach(k => { const h = document.getElementById('time-popup-' + k); if (h) h.style.display = 'none'; });
   if (show) {
     timeTarget = target;
-    const t = timeTo12(document.getElementById('b-' + target).value);
-    timeHour = t.h12; timeMinute = t.m; timePeriod = t.ap;
+    timeOffset = timePageOffset(target);
     renderTimePopup();
     host.style.display = 'block';
   } else { timeTarget = null; }
