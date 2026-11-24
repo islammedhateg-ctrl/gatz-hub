@@ -1,7 +1,7 @@
 /* Gatz. Hub Service Worker — Network-first for HTML, Cache-first for assets */
 
-const STATIC_CACHE = 'gatz-hub-static-v8';
-const RUNTIME_CACHE = 'gatz-hub-runtime-v8';
+const STATIC_CACHE = 'gatz-hub-static-v9';
+const RUNTIME_CACHE = 'gatz-hub-runtime-v9';
 const PRECACHE = ['./restaurant-booking-v2.html', './gatz-word.png', './gatz-brand-icon.png', './gatz-badge.png', './gatz-notification-banner.png', './manifest.json'];
 
 // تثبيت: تحميل الملفات الأساسية مسبقاً
@@ -35,8 +35,7 @@ self.addEventListener('push', (e) => {
   const title = data.title || 'Gatz. Hub';
   const options = {
     body: data.body || '',
-    icon: data.icon || './gatz-brand-icon.png',
-    badge: data.badge || data.icon || './gatz-badge.png',
+    badge: data.badge || './gatz-badge.png',
     tag: data.tag || 'gatz-hub',
     data: { url: data.url || '#dashboard' },
     vibrate: [120, 60, 120]
