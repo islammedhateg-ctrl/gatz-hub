@@ -17,7 +17,7 @@
 <body>
   <div class="spin"></div>
   <h1>جارٍ تحديث Gatz. Hub...</h1>
-  <p>بنمسح النسخة القديمة من الكاش من غير لمس بياناتك.</p>
+  <p>بنستبدل النسخة القديمة بالجديدة من غير لمس بياناتك.</p>
   <div class="err" id="err"></div>
   <p><a href="restaurant-booking-v2.html">اضغط هنا لو استغرق الوقت</a></p>
   <noscript><p>يفضّل تفعيل JavaScript عشان التحديث يتم تلقائياً.</p></noscript>
@@ -42,15 +42,10 @@
     }
   } catch (e) { fail(e); }
 
-  try {
-    // ٢) حذف كاش الملفات القديم فقط (Cache Storage — مش localStorage)
-    if (window.caches && caches.keys) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k).catch(() => {})));
-    }
-  } catch (e) { fail(e); }
-
-  // ٣) فتح النسخة الجديدة برابط فريد (بيكسر كاش CDN كمان)
+  // ٢) فتح النسخة الجديدة برابط فريد.
+  // ملحوظة: متعملش caches.delete() هنا — لو الـ SW القديم لسه متحكم والشبكة فشلت،
+  // الكاش هو البديل الوحيد، ومسحه قبل التحويل ممكن يسبب ERR_FAILED.
+  // الرابط الجديد مختلف أصلاً فالنسخة القديمة مش هتستخدم تاني.
   location.replace(target);
 })();
 </script>
