@@ -786,47 +786,37 @@ select.input option:checked { background: var(--primary-soft); color: var(--prim
 }
 .has-icon:focus-within > i.field-icon { color: var(--primary); }
 .input.error { border-color: var(--danger); }
-/* حقل التاريخ المخصص */
-.date-popup {
-  position: absolute; z-index: 700; top: calc(100% + 4px); inset-inline-start: 0; inset-inline-end: 0;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-  box-shadow: var(--shadow-lg); padding: 12px; min-width: 280px;
+/* حقول التاريخ والوقت — تصميم نظيف بسيط */
+.clean-field { display: flex; flex-direction: column; gap: 0; }
+.clean-box {
+  position: relative; display: flex; align-items: center; gap: 10px; min-height: 50px;
+  background: var(--surface); border: 1px solid var(--border-2); border-radius: 12px;
+  padding: 10px 13px; box-shadow: 0 1px 2px rgba(0,0,0,.02); transition: border-color .15s, box-shadow .15s;
 }
-.date-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-.date-nav span { border: 1px solid var(--border); border-radius: 8px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-weight: 800; }
-.date-nav b { font-size: .8rem; font-variant-numeric: tabular-nums; }
-.date-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.date-chip { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 99px; padding: 6px 11px; font-size: .72rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
-.date-chip.on { background: var(--primary); border-color: var(--primary); color: #fff; }
-.date-sep { height: 1px; background: var(--border); margin: 11px 0; }
-/* ٤ كروت ظاهرة للاختيار — تاريخ ووقت */
-.pick-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
-.pick-arrow {
-  border: 1px solid var(--border); background: var(--surface); color: var(--text);
-  border-radius: 9px; width: 32px; height: 32px; display: inline-flex; align-items: center;
-  justify-content: center; cursor: pointer; font-weight: 900; flex: none; font-size: 1.05rem;
+.clean-box:hover, .clean-box:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.clean-box > *:not(.native-overlay) { pointer-events: none; }
+.clean-box i.field-icon { color: var(--primary); font-size: .95rem; }
+.clean-val {
+  flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+  font-family: inherit; font-size: .9rem; font-weight: 700; color: var(--text);
+  padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.pick-arrow:hover { border-color: var(--primary); color: var(--primary); }
-.pick-title { font-size: .76rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.pick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.pick-card {
-  border: 1px solid var(--border); background: var(--surface); border-radius: 10px;
-  padding: 9px 3px; text-align: center; cursor: pointer; min-width: 0; transition: .15s;
+.clean-mini { font-size: .7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.native-overlay {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+  border: 0; padding: 0; font-size: 16px; color: transparent; background: transparent;
 }
-.pick-card:hover { border-color: var(--primary); }
-.pick-card b { display: block; font-size: 1rem; line-height: 1.15; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pick-card span { display: block; font-size: .58rem; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pick-card.on { background: var(--primary); border-color: var(--primary); color: #fff; }
-.pick-card.on span { color: #fff; opacity: .85; }
-.pick-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--border); font-size: .68rem; color: var(--muted); }
-.pick-foot b { color: var(--primary); }
-@media (max-width: 480px) { .pick-grid { gap: 4px; } .pick-card { padding: 8px 2px; } .pick-card b { font-size: .9rem; } }
-/* نافذة الوقت — نفس فكرة الـ ٤ كروت */
-.time-popup {
-  position: absolute; z-index: 700; top: calc(100% + 4px); inset-inline-start: 0; inset-inline-end: 0;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-  box-shadow: var(--shadow-lg); padding: 12px; min-width: 260px;
+.quick-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.quick-chip {
+  border: 1px solid var(--border-2); background: var(--surface); color: var(--muted);
+  border-radius: 99px; padding: 5px 10px; font-size: .72rem; font-weight: 700;
+  font-family: inherit; cursor: pointer; white-space: nowrap; min-height: 30px;
 }
+.quick-chip:hover { border-color: var(--primary); color: var(--primary); }
+.quick-chip.on {
+  background: var(--primary-soft); border-color: var(--primary-soft-2); color: var(--primary);
+}
+@media (max-width: 480px) { .quick-chip { font-size: .68rem; padding: 5px 8px; } }
 .input::placeholder { color: var(--muted-2); }
 .helper { font-size: .75rem; color: var(--muted); }
 .helper.error { color: var(--danger); }
@@ -1906,11 +1896,18 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
               <div class="form-grid">
                 <div class="form-group">
                   <label data-i18n="field.date">تاريخ الحجز <span class="req">*</span></label>
-                  <div class="has-icon" style="position:relative;">
-                    <i class="fa-solid fa-calendar-days field-icon"></i>
-                    <input class="input" type="text" id="b-date-display" readonly onclick="toggleDatePopup()" placeholder="اختر التاريخ" aria-label="Booking Date">
-                    <input type="hidden" id="b-date" min="" data-required="1" onchange="checkBookingDate()">
-                    <div id="date-popup" class="date-popup" style="display:none;"></div>
+                  <div class="clean-field">
+                    <div class="clean-box">
+                      <i class="fa-solid fa-calendar-days field-icon"></i>
+                      <input class="clean-val" type="text" id="b-date-display" readonly placeholder="اختر التاريخ" aria-label="Booking Date">
+                      <input type="date" id="b-date" class="native-overlay" min="" data-required="1" onchange="checkBookingDate(); refreshQuickChips();" aria-label="Booking date picker">
+                    </div>
+                    <div class="quick-chips" id="date-quick-chips">
+                      <button type="button" class="quick-chip" data-day="today" data-i18n="quick.today" onclick="setQuickDate('today')">اليوم</button>
+                      <button type="button" class="quick-chip" data-day="tomorrow" data-i18n="quick.tomorrow" onclick="setQuickDate('tomorrow')">بكرة</button>
+                      <button type="button" class="quick-chip" data-day="weekend" data-i18n="quick.weekend" onclick="setQuickDate('weekend')">نهاية الأسبوع</button>
+                      <button type="button" class="quick-chip" data-day="custom" data-i18n="quick.custom" onclick="setQuickDate('custom')">تخصيص</button>
+                    </div>
                     <div class="helper" id="date-warning" style="color:var(--danger); font-weight:600;"></div>
                   </div>
                 </div>
@@ -1929,21 +1926,30 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.start">وقت الوصول <span class="req">*</span></label>
-                  <div class="has-icon" style="position:relative;">
-                    <i class="fa-solid fa-clock field-icon"></i>
-                    <input class="input" type="text" id="b-start-display" readonly onclick="toggleTimePopup('start')" aria-label="Arrival Time">
-                    <input type="hidden" id="b-start" value="18:00" data-required="1">
-                    <div class="time-popup" id="time-popup-start" style="display:none;"></div>
+                  <div class="clean-field">
+                    <div class="clean-box">
+                      <i class="fa-solid fa-clock field-icon"></i>
+                      <input class="clean-val" type="text" id="b-start-display" readonly aria-label="Arrival Time">
+                      <span class="clean-mini" id="start-mini">18:00</span>
+                      <input type="time" id="b-start" class="native-overlay" min="10:00" max="23:59" value="18:00" data-required="1" onchange="refreshTimeDisplays(); refreshQuickChips();" aria-label="Arrival time picker">
+                    </div>
+                    <div class="quick-chips" id="time-quick-chips">
+                      <button type="button" class="quick-chip" data-time="18:00" onclick="setQuickTime('18:00')">١٨:٠٠</button>
+                      <button type="button" class="quick-chip" data-time="19:00" onclick="setQuickTime('19:00')">١٩:٠٠</button>
+                      <button type="button" class="quick-chip" data-time="20:00" onclick="setQuickTime('20:00')">٢٠:٠٠</button>
+                      <button type="button" class="quick-chip" data-time="21:00" onclick="setQuickTime('21:00')">٢١:٠٠</button>
+                    </div>
                     <div class="helper" id="start-hint"></div>
                   </div>
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.end">وقت المغادرة <span class="req">*</span></label>
-                  <div class="has-icon" style="position:relative;">
-                    <i class="fa-solid fa-clock-rotate-left field-icon"></i>
-                    <input class="input" type="text" id="b-end-display" readonly onclick="toggleTimePopup('end')" aria-label="Departure Time">
-                    <input type="hidden" id="b-end" value="00:00" data-required="1">
-                    <div class="time-popup" id="time-popup-end" style="display:none;"></div>
+                  <div class="clean-field">
+                    <div class="clean-box">
+                      <i class="fa-solid fa-clock-rotate-left field-icon"></i>
+                      <input class="clean-val" type="text" id="b-end-display" readonly aria-label="Departure Time">
+                      <input type="hidden" id="b-end" value="00:00" data-required="1">
+                    </div>
                     <div class="helper" id="end-hint"></div>
                   </div>
                 </div>
@@ -2993,6 +2999,10 @@ const I18N = {
     'placeholder.selectCustomer': '-- اختيار (اختياري) --',
     'customer.prevCancelled': 'حجز ملغي',
     'field.date': 'تاريخ الحجز',
+    'quick.today': 'اليوم',
+    'quick.tomorrow': 'بكرة',
+    'quick.weekend': 'نهاية الأسبوع',
+    'quick.custom': 'تخصيص',
     'field.type': 'نوع الحجز',
     'field.package': 'الباقة (رسوم لكل ضيف)',
     'field.fees': 'الرسوم',
@@ -3387,6 +3397,10 @@ const I18N = {
     'placeholder.selectCustomer': '-- Select (optional) --',
     'customer.prevCancelled': 'Cancelled before',
     'field.date': 'Booking Date',
+    'quick.today': 'Today',
+    'quick.tomorrow': 'Tomorrow',
+    'quick.weekend': 'Weekend',
+    'quick.custom': 'Custom',
     'field.type': 'Booking Type',
     'field.package': 'Package (fee per person)',
     'field.fees': 'Fees',
@@ -3721,7 +3735,7 @@ function setLang(lang) {
   if (activeTab === 'finance') renderFinance();
   if (activeTab === 'zones') renderZones();
   if (activeTab === 'door') { updateQuickDoorSelect(); renderRecentCheckins(); }
-  if (activeTab === 'new-booking') { renderZoneCards(); renderPackageOptions(); refreshDateDisplay(); renderDatePopup(); resetCustomerSearch(); }
+  if (activeTab === 'new-booking') { renderZoneCards(); renderPackageOptions(); refreshDateDisplay(); refreshQuickChips(); resetCustomerSearch(); }
   if (activeTab === 'dashboard') renderDashboard();
   if (activeTab === 'settings') { const el = document.getElementById('set-account-number'); if (el) el.value = accountNumber; const pu = document.getElementById('set-public-url'); if (pu) pu.value = publicAppUrl; const ns = document.getElementById('notif-status'); if (ns) setNotifStatus(ns.classList.contains('on')); }
   applyI18n();
@@ -3959,7 +3973,7 @@ function loadDraft() {
   document.getElementById('b-type').value = d.type || 'أخرى';
   document.getElementById('b-guests').value = d.guests || 10;
   document.getElementById('b-start').value = d.start || '18:00';
-  refreshHoursHints();
+  refreshHoursHints(); refreshQuickChips();
   document.getElementById('b-deposit').value = d.deposit || 500;
   selectedZoneId = d.zoneId || null;
   renderPackageOptions(d.packageIndex || 0);
@@ -5464,7 +5478,7 @@ function todayStr() { return dateIso(); }
 // الحجز المنتهي: تاريخه قبل اليوم (يظل في السجل لكن لا يُسمح بدخوله)
 function isBookingExpired(b) { return !!b && !!b.date && b.date < todayStr(); }
 function expiredLabel() { return currentLang === 'ar' ? 'منتهي' : 'Expired'; }
-let dateMode = 'weekday', dateFullMonth = false, dateOffset = 0;
+
 const dateDaysAR = ['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
 const dateDaysEN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const dateMonthsAR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
@@ -5485,109 +5499,54 @@ function refreshDateDisplay() {
   const el = document.getElementById('b-date-display');
   if (el) el.value = formatDateLabel(document.getElementById('b-date')?.value);
 }
-function dateRemainingDays(mode) {
-  const iso = document.getElementById('b-date')?.value || todayStr();
+function addDays(iso, n) {
   const p = dateParts(iso);
-  if (!p.y || !p.m) return [];
-  const todayIso = todayStr();
-  const last = new Date(p.y, p.m, 0).getDate();
-  const out = [];
-  for (let d = 1; d <= last; d++) {
-    const key = `${p.y}-${String(p.m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    if (key < todayIso) continue;
-    const dow = new Date(p.y, p.m - 1, d).getDay();
-    if (mode === 'weekday' && dow > 3) continue; // الأحد→الأربعاء
-    if (mode === 'weekend' && dow < 4) continue; // الخميس→السبت
-    out.push(d);
+  if (!p.y || !p.m || !p.d) return iso;
+  const d = new Date(p.y, p.m - 1, p.d + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function nextWeekendIso() {
+  let iso = todayStr();
+  for (let i = 0; i < 14; i++) {
+    const p = dateParts(iso);
+    const dow = new Date(p.y, p.m - 1, p.d).getDay();
+    if (dow >= 4 && dow <= 6) return iso; // خميس-سبت
+    iso = addDays(iso, 1);
   }
-  return out;
+  return iso;
 }
-// معاينة ٤ كروت للتاريخ — الضغط يختار والأسهم ينقلوا للمجموعة اللي بعدها
-function datePageOffset(iso) {
-  const p = dateParts(iso);
-  const list = dateRemainingDays(dateMode);
-  const i = Math.max(0, list.indexOf(p.d));
-  return Math.min(Math.max(0, list.length - 4), Math.floor(i / 4) * 4);
+function openNativePicker(el) {
+  if (!el) return;
+  if (typeof el.showPicker === 'function') {
+    try { el.showPicker(); return; } catch (e) { /* fallback */ }
+  }
+  el.focus(); el.click();
 }
-function renderDatePopup() {
-  const host = document.getElementById('date-popup');
-  if (!host) return;
-  const iso = document.getElementById('b-date')?.value || todayStr();
-  const p = dateParts(iso);
-  const days = currentLang === 'ar' ? dateDaysAR : dateDaysEN;
-  const months = currentLang === 'ar' ? dateMonthsAR : dateMonthsEN;
-  const labels = currentLang === 'ar'
-    ? ['أيام العمل','نهاية الأسبوع','الكل (مرتّب)']
-    : ['Week days','Weekend','All (ordered)'];
-  const modes = ['weekday','weekend','all'];
-  const chips = labels.map((l, i) => `<span class="date-chip ${modes[i] === dateMode ? 'on' : ''}" onclick="setDateMode('${modes[i]}')">${l}</span>`).join('');
-  const list = dateRemainingDays(dateMode);
-  dateOffset = Math.min(Math.max(0, list.length - 4), Math.max(0, dateOffset));
-  const cards = list.slice(dateOffset, dateOffset + 4).map(d => {
-    const key = `${p.y}-${String(p.m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dow = new Date(p.y, p.m - 1, d).getDay();
-    return `<div class="pick-card ${key === iso ? 'on' : ''}" onclick="pickDate('${key}')"><b>${d}</b><span>${days[dow].slice(0, 3)}</span></div>`;
-  }).join('') || `<div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:.72rem;">${currentLang === 'ar' ? 'لا توجد أيام متبقية' : 'No days left'}</div>`;
-  const nav = `<div class="date-nav"><span onclick="changeBookingMonth(-1)" title="${currentLang === 'ar' ? 'الشهر السابق' : 'Previous month'}">‹</span><b>${p.y} / ${String(p.m).padStart(2, '0')}</b><span onclick="changeBookingMonth(1)" title="${currentLang === 'ar' ? 'الشهر التالي' : 'Next month'}">›</span></div>`;
-  const head = `<div class="pick-head"><span class="pick-arrow" onclick="shiftDateGroup(-1)">‹</span><span class="pick-title">${months[p.m - 1]} ${p.y}</span><span class="pick-arrow" onclick="shiftDateGroup(1)">›</span></div>`;
-  host.innerHTML = `${nav}<div class="date-chips">${chips}</div><div class="date-sep"></div>${head}<div class="pick-grid">${cards}</div>
-    <div class="pick-foot"><span>${currentLang === 'ar' ? 'اضغط لاختيار اليوم' : 'Tap a day to select'}</span><span>${currentLang === 'ar' ? 'المختار' : 'Selected'}: <b>${formatDateLabel(iso)}</b></span></div>`;
-}
-function shiftDateGroup(delta) {
-  const list = dateRemainingDays(dateMode);
-  if (!list.length) return;
-  dateOffset = Math.min(Math.max(0, list.length - 4), Math.max(0, dateOffset + delta * 4));
-  renderDatePopup();
-}
-function changeBookingMonth(delta) {
+function setQuickDate(kind) {
   const el = document.getElementById('b-date');
-  const p = dateParts(el?.value || todayStr());
-  if (!p.y || !p.m) return;
-  let y = p.y, m = p.m + delta;
-  if (m < 1) { m = 12; y--; }
-  if (m > 12) { m = 1; y++; }
-  const maxD = new Date(y, m, 0).getDate();
-  const d = Math.min(p.d || 1, maxD);
-  if (el) el.value = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  dateOffset = 0;
+  if (!el) return;
+  if (kind === 'custom') { openNativePicker(el); return; }
+  const iso = kind === 'today' ? todayStr() : kind === 'tomorrow' ? addDays(todayStr(), 1) : nextWeekendIso();
+  el.value = iso;
+  el.dispatchEvent(new Event('change', { bubbles: true }));
   refreshDateDisplay();
   checkBookingDate();
-  renderDatePopup();
+  refreshQuickChips();
 }
-function setDateMode(m) {
-  dateMode = m; dateFullMonth = false;
-  const iso = document.getElementById('b-date')?.value || todayStr();
+function refreshQuickChips() {
+  const iso = document.getElementById('b-date')?.value || '';
+  const today = todayStr();
   const p = dateParts(iso);
-  const list = dateRemainingDays(m);
-  if (list.length && !list.includes(p.d)) {
-    const key = `${p.y}-${String(p.m).padStart(2,'0')}-${String(list[0]).padStart(2,'0')}`;
-    const el = document.getElementById('b-date'); if (el) el.value = key;
-    refreshDateDisplay();
-  }
-  dateOffset = datePageOffset(document.getElementById('b-date')?.value || iso);
-  renderDatePopup();
-}
-function pickDate(iso) {
-  const el = document.getElementById('b-date');
-  if (el) { el.value = iso; el.dispatchEvent(new Event('change', { bubbles: true })); }
-  const p = dateParts(iso);
-  const dow = new Date(p.y, p.m - 1, p.d).getDay();
-  dateMode = dow > 3 ? 'weekend' : 'weekday'; // الشريط دايماً يعرض نوع اليوم المختار
-  dateOffset = datePageOffset(iso);
-  refreshDateDisplay();
-  const popup = document.getElementById('date-popup');
-  if (popup) popup.style.display = 'none';
-}
-function toggleDatePopup() {
-  const popup = document.getElementById('date-popup');
-  if (!popup) return;
-  const show = popup.style.display === 'none';
-  if (show) {
-    dateFullMonth = false;
-    dateOffset = datePageOffset(document.getElementById('b-date')?.value || todayStr());
-    renderDatePopup();
-  }
-  popup.style.display = show ? 'block' : 'none';
+  const dow = p.y ? new Date(p.y, p.m - 1, p.d).getDay() : -1;
+  const onDate = {
+    today: iso === today,
+    tomorrow: iso === addDays(today, 1),
+    weekend: !!iso && iso >= today && dow >= 4 && dow <= 6,
+    custom: false
+  };
+  document.querySelectorAll('#date-quick-chips .quick-chip').forEach(c => c.classList.toggle('on', !!onDate[c.dataset.day]));
+  const start = document.getElementById('b-start')?.value || '';
+  document.querySelectorAll('#time-quick-chips .quick-chip').forEach(c => c.classList.toggle('on', c.dataset.time === start));
 }
 // ساعات العمل: وصول ١٠ صباحاً → ١١:٥٩ مساءً، ومغادرة ١٢ أو ١ صباحاً حسب نوع اليوم
 function timeMinutes(v) {
@@ -5642,66 +5601,15 @@ function refreshTimeDisplays() {
     const el = document.getElementById('b-' + k + '-display');
     if (el) el.value = formatTimeDisplay(document.getElementById('b-' + k).value);
   });
+  const mini = document.getElementById('start-mini');
+  if (mini) mini.textContent = document.getElementById('b-start')?.value || '';
 }
-// معاينة ٤ أوقات — الضغط يختار والأسهم ينقلوا للمجموعة اللي بعدها
-let timeTarget = null, timeOffset = 0;
-function timeSlots(target) {
-  const slots = [];
-  for (let m = 600; m <= 1439; m += 30) {
-    slots.push(String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'));
-  }
-  if (target === 'end') slots.push('00:00', '01:00'); // مغادرة بعد نص الليل
-  return slots;
-}
-function timePageOffset(target) {
-  const slots = timeSlots(target);
-  const i = Math.max(0, slots.indexOf(document.getElementById('b-' + target)?.value));
-  return Math.min(Math.max(0, slots.length - 4), Math.floor(i / 4) * 4);
-}
-function renderTimePopup() {
-  if (!timeTarget) return;
-  const host = document.getElementById('time-popup-' + timeTarget);
-  if (!host) return;
-  const slots = timeSlots(timeTarget);
-  const cur = document.getElementById('b-' + timeTarget).value;
-  timeOffset = Math.min(Math.max(0, slots.length - 4), Math.max(0, timeOffset));
-  const cards = slots.slice(timeOffset, timeOffset + 4).map(v =>
-    `<div class="pick-card ${v === cur ? 'on' : ''}" onclick="pickTime('${v}')"><b>${formatTimeDisplay(v)}</b><span>${v}</span></div>`
-  ).join('');
-  const title = timeTarget === 'start'
-    ? (currentLang === 'ar' ? 'وقت الوصول' : 'Arrival time')
-    : (currentLang === 'ar' ? 'وقت المغادرة' : 'Departure time');
-  const head = `<div class="pick-head"><span class="pick-arrow" onclick="shiftTimeGroup(-1)">‹</span><span class="pick-title">${title}</span><span class="pick-arrow" onclick="shiftTimeGroup(1)">›</span></div>`;
-  host.innerHTML = `${head}<div class="pick-grid">${cards}</div>
-    <div class="pick-foot"><span>${currentLang === 'ar' ? 'اضغط لاختيار الوقت' : 'Tap a time to select'}</span><span>${currentLang === 'ar' ? 'المختار' : 'Selected'}: <b>${formatTimeDisplay(cur)} (${cur})</b></span></div>`;
-}
-function shiftTimeGroup(delta) {
-  if (!timeTarget) return;
-  const slots = timeSlots(timeTarget);
-  if (!slots.length) return;
-  timeOffset = Math.min(Math.max(0, slots.length - 4), Math.max(0, timeOffset + delta * 4));
-  renderTimePopup();
-}
-function pickTime(v) {
-  if (!timeTarget) return;
-  const el = document.getElementById('b-' + timeTarget);
-  if (el) el.value = v;
+function setQuickTime(v) {
+  const el = document.getElementById('b-start');
+  if (!el || !v) return;
+  el.value = v;
   refreshTimeDisplays();
-  const host = document.getElementById('time-popup-' + timeTarget);
-  if (host) host.style.display = 'none';
-  timeTarget = null;
-}
-function toggleTimePopup(target) {
-  const host = document.getElementById('time-popup-' + target);
-  if (!host) return;
-  const show = host.style.display === 'none';
-  ['start','end'].forEach(k => { const h = document.getElementById('time-popup-' + k); if (h) h.style.display = 'none'; });
-  if (show) {
-    timeTarget = target;
-    timeOffset = timePageOffset(target);
-    renderTimePopup();
-    host.style.display = 'block';
-  } else { timeTarget = null; }
+  refreshQuickChips();
 }
 function updateDateMin() {
   const bd = document.getElementById('b-date');
@@ -6009,7 +5917,7 @@ function saveBooking() {
   document.getElementById('b-date').value = todayStr();
   refreshDateDisplay();
   document.getElementById('b-start').value = '18:00';
-  refreshHoursHints();
+  refreshHoursHints(); refreshQuickChips();
   document.getElementById('b-guests').value = 10;
   document.getElementById('b-deposit').value = 500;
   document.getElementById('transfer-box').style.display = 'none';
@@ -6464,7 +6372,7 @@ function editBooking(id) {
   document.getElementById('b-type').value = b.type || 'أخرى';
   document.getElementById('b-guests').value = b.guests || 1;
   document.getElementById('b-start').value = b.start || '18:00';
-  refreshHoursHints();
+  refreshHoursHints(); refreshQuickChips();
   document.getElementById('b-deposit').value = b.deposit || 0;
   selectedZoneId = b.zoneId;
   renderPackageOptions(b.packageIndex != null ? b.packageIndex : 0);
@@ -8474,18 +8382,10 @@ async function cloudRestore() {
 }
 // تهيئة حقول الباقة والتاريخ والوقت في نموذج الحجز
 renderPackageOptions();
+if (!document.getElementById('b-date').value) document.getElementById('b-date').value = todayStr();
 refreshDateDisplay();
 refreshHoursHints();
-document.addEventListener('click', function (e) {
-  const dp = document.getElementById('date-popup');
-  const dd = document.getElementById('b-date-display');
-  if (dp && dd && dp.style.display === 'block' && !dp.contains(e.target) && e.target !== dd) dp.style.display = 'none';
-  ['start','end'].forEach(k => {
-    const tp = document.getElementById('time-popup-' + k);
-    const td = document.getElementById('b-' + k + '-display');
-    if (tp && td && tp.style.display === 'block' && !tp.contains(e.target) && e.target !== td) tp.style.display = 'none';
-  });
-});
+refreshQuickChips();
 </script>
 
 </body>
