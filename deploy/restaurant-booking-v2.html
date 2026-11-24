@@ -1676,29 +1676,6 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
             <button class="btn btn-outline btn-sm" onclick="exportCSV()" title="Export CSV"><i class="fa-solid fa-file-csv"></i> <span class="hide-mobile" data-i18n="action.export">تصدير</span></button>
           </div>
         </div>
-        <!-- Cancelled report (يظهر عند اختيار فلتر "ملغي") -->
-        <div class="card" id="cancelled-report" style="display:none; margin-bottom:16px;">
-          <div class="card-header">
-            <div class="card-title"><i class="fa-solid fa-ban" style="color:var(--warning);"></i> <span data-i18n="cancel.reportTitle">تقرير الحجوزات الملغية</span></div>
-          </div>
-          <div class="stats-grid" style="grid-template-columns:repeat(3,1fr); margin-bottom:16px;">
-            <div class="stat-card">
-              <div class="icon warning"><i class="fa-solid fa-ban"></i></div>
-              <div class="label" data-i18n="cancel.total">عدد الملغية</div>
-              <div class="value num" id="cancel-stat-total">0</div>
-            </div>
-            <div class="stat-card">
-              <div class="icon info"><i class="fa-solid fa-users"></i></div>
-              <div class="label" data-i18n="cancel.guestsLost">ضيوف مفقودون</div>
-              <div class="value num" id="cancel-stat-guests">0</div>
-            </div>
-            <div class="stat-card">
-              <div class="icon primary"><i class="fa-solid fa-sack-dollar"></i></div>
-              <div class="label" data-i18n="cancel.depositLost">ديبوزيت مفقود</div>
-              <div class="value num" id="cancel-stat-deposit" style="font-size:1.6rem;">0</div>
-            </div>
-          </div>
-        </div>
         <div class="card table-card">
           <div id="bookings-table-wrap"></div>
         </div>
@@ -3075,10 +3052,6 @@ const I18N = {
     'cancel.confirmBtn': 'تأكيد الإلغاء',
     'cancel.errReason': 'يرجى اختيار السبب',
     'cancel.cancelledAt': 'وقت الإلغاء',
-    'cancel.reportTitle': 'تقرير الحجوزات الملغية',
-    'cancel.total': 'عدد الملغية',
-    'cancel.guestsLost': 'ضيوف مفقودون',
-    'cancel.depositLost': 'ديبوزيت مفقود',
     'settings.backup': 'النسخ الاحتياطي',
     'settings.backupExport': 'تصدير البيانات',
     'settings.backupImport': 'استيراد البيانات',
@@ -3466,10 +3439,6 @@ const I18N = {
     'cancel.confirmBtn': 'Confirm Cancellation',
     'cancel.errReason': 'Please select a reason',
     'cancel.cancelledAt': 'Cancelled at',
-    'cancel.reportTitle': 'Cancelled Bookings Report',
-    'cancel.total': 'Total Cancelled',
-    'cancel.guestsLost': 'Guests Lost',
-    'cancel.depositLost': 'Deposit Lost',
     'settings.backup': 'Backup & Restore',
     'settings.backupExport': 'Export Data',
     'settings.backupImport': 'Import Data',
@@ -5034,20 +5003,6 @@ function renderBookings() {
   const wrap = document.getElementById('bookings-table-wrap');
   if (!wrap) return;
   const list = getFilteredBookings();
-  const statusFilter = document.getElementById('filter-status')?.value || '';
-
-  // تقرير الملغية — يُعرض فقط عند اختيار فلتر "ملغي"
-  const report = document.getElementById('cancelled-report');
-  if (report) {
-    const showReport = statusFilter === 'cancelled';
-    report.style.display = showReport ? '' : 'none';
-    if (showReport) {
-      const cancelledAll = bookings.filter(b => b.cancelled);
-      const cs = document.getElementById('cancel-stat-total'); if (cs) cs.textContent = cancelledAll.length;
-      const cg = document.getElementById('cancel-stat-guests'); if (cg) cg.textContent = cancelledAll.reduce((s,b)=>s+(b.guests||0),0);
-      const cd = document.getElementById('cancel-stat-deposit'); if (cd) cd.textContent = formatMoney(cancelledAll.reduce((s,b)=>s+(b.deposit||0),0)) + ' ' + cur();
-    }
-  }
   // populate zone filter
   const zSel = document.getElementById('filter-zone');
   if (zSel && zSel.options.length <= 1) {
