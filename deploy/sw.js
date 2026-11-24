@@ -1,8 +1,8 @@
 /* Gatz. Hub Service Worker — Network-first for HTML, Cache-first for assets */
 
-const STATIC_CACHE = 'gatz-hub-static-v12';
-const RUNTIME_CACHE = 'gatz-hub-runtime-v12';
-const PRECACHE = ['./restaurant-booking-v2.html', './gatz-word.png', './gatz-brand-icon.png', './gatz-badge.png', './manifest.json'];
+const STATIC_CACHE = 'gatz-hub-static-v13';
+const RUNTIME_CACHE = 'gatz-hub-runtime-v13';
+const PRECACHE = ['./restaurant-booking-v2.html', './html5-qrcode.min.js', './gatz-word.png', './gatz-brand-icon.png', './gatz-badge.png', './manifest.json'];
 
 // تثبيت: تحميل الملفات الأساسية مسبقاً
 self.addEventListener('install', (e) => {

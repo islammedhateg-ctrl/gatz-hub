@@ -13,11 +13,10 @@
 <meta name="apple-mobile-web-app-title" content="Gatz. Hub">
 <!-- الخطوط: system-ui فقط (مفيش تحميل خارجي) -->
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<link rel="preconnect" href="https://unpkg.com" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
 <!-- سكربتات مؤجلة: لا تمنع ظهور الصفحة (تُستخدم عند فتح QR / البوابة فقط) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
+<script src="html5-qrcode.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 <style>
 /* ============================================================
@@ -7227,6 +7226,9 @@ let qrFrames = 0;
 let qrScanning = false;
 let lastScanTime = 0;
 let lastScannedCode = '';
+// منع العد المزدوج: نفس كود الحجز ما يضيفش +1 تاني قبل مرور ٣٠ ثانية
+const DOOR_SCAN_COOLDOWN = 30000;
+let lastAutoCheckin = { code: '', time: 0 };
 
 // ماسح موثوق: كاميرا مباشرة + فحص كل إطار (BarcodeDetector أصلي أو html5-qrcode)
 async function startQrScan() {
@@ -7331,7 +7333,7 @@ async function startQrScan() {
 
     if (text) {
       const now = Date.now();
-      if (text !== lastScannedCode || (now - lastScanTime) >= 3000) {
+      if (text !== lastScannedCode || (now - lastScanTime) >= DOOR_SCAN_COOLDOWN) {
         lastScannedCode = text;
         lastScanTime = now;
         stopQrScan();
@@ -7344,33 +7346,6 @@ async function startQrScan() {
     qrLoop = setTimeout(tick, qrDetector ? 90 : 160);
   };
   tick();
-}
-
-// بديل عند تعذّر الكاميرا: قراءة QR من صورة/لقطة شاشة
-async function scanQrFromFile(input) {
-  const file = input.files && input.files[0];
-  if (!file) return;
-  const status = document.getElementById('scan-status');
-  status.textContent = currentLang === 'ar' ? 'جارٍ قراءة الصورة...' : 'Reading image...';
-  try {
-    if (!window.Html5Qrcode) throw new Error('Scanner library not loaded');
-    let el = document.getElementById('qr-file-reader');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'qr-file-reader';
-      el.style.cssText = 'position:absolute;left:-99999px;top:-99999px;';
-      document.body.appendChild(el);
-    }
-    const scanner = new Html5Qrcode('qr-file-reader');
-    const text = await scanner.scanFile(file, true);
-    status.textContent = (currentLang === 'ar' ? 'تم المسح: ' : 'Scanned: ') + text;
-    handleScannedCode(text);
-  } catch (e) {
-    status.textContent = currentLang === 'ar'
-      ? 'لم يتم العثور على QR في الصورة'
-      : 'No QR found in image';
-  }
-  input.value = '';
 }
 
 function stopQrScan() {
@@ -7485,7 +7460,17 @@ function handleScannedCode(code) {
       return;
     }
     lookupBookingForDoor();
-    // auto check-in +1
+    // منع العد المزدوج: نفس الكود لا يضيف +1 تاني قبل انتهاء فترة التهدئة
+    const now = Date.now();
+    const isRepeat = lastAutoCheckin.code === cleaned && (now - lastAutoCheckin.time) < DOOR_SCAN_COOLDOWN;
+    lastAutoCheckin = { code: cleaned, time: now };
+    if (isRepeat) {
+      if (doorBeepEnabled) playBeep(330, 220);
+      toast(currentLang === 'ar'
+        ? 'مسح مكرر — الحجز مفتوح بدون إضافة عدّ. استخدم «دخول +1» لو مطلوب.'
+        : 'Repeat scan — booking opened without +1. Use “Check-in +1” if needed.', 'info');
+      return;
+    }
     incrementGuest(1);
     if (doorBeepEnabled) playBeep(880, 140);
     toast((currentLang === 'ar' ? 'تم مسح: ' : 'Scanned: ') + b.name + ' (+1)', 'success');
@@ -7573,7 +7558,9 @@ function incrementGuest(count) {
     toast('Exceeds expected guests', 'warning');
   }
   b.checkedIn += count;
-  lastCheckinUndo = { id: b.id, count };
+  // مفتاح فريد لكل عملية عشان التراجع يشيل العملية الصح مش آخر واحدة بالاسم
+  const undoKey = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  lastCheckinUndo = { id: b.id, count, key: undoKey };
   saveData();
   if (CLOUD.enabled && CLOUD.client) {
     CLOUD.client.from('bookings').update({ checked_in: b.checkedIn })
@@ -7581,7 +7568,7 @@ function incrementGuest(count) {
   }
   document.getElementById('door-checked-in').textContent = b.checkedIn;
   updateProgressRing(b.checkedIn, b.guests);
-  const item = { id: b.id, name: b.name, count, time: new Date().toLocaleTimeString() };
+  const item = { id: b.id, name: b.name, count, key: undoKey, time: new Date().toLocaleTimeString() };
   recentCheckins.unshift(item);
   if (recentCheckins.length > 8) recentCheckins.pop();
   updateQuickDoorSelect();
@@ -7627,13 +7614,19 @@ function undoLastCheckIn() {
   if (b) {
     b.checkedIn = Math.max(0, b.checkedIn - lastCheckinUndo.count);
     saveData();
+    // التراجع لازم يوصل للسيرفر كمان عشان ما يحصلش فرق بين الجهاز والـ Supabase
+    if (CLOUD.enabled && CLOUD.client) {
+      CLOUD.client.from('bookings').update({ checked_in: b.checkedIn })
+        .eq('id', b.id).then(() => {}).catch(e => cloudWarn(e));
+    }
     if (activeDoorBookingId === b.id) {
       document.getElementById('door-checked-in').textContent = b.checkedIn;
       updateProgressRing(b.checkedIn, b.guests);
     }
-    // شيل آخر عملية دخول من السجل عشان ما يظهرش بعد التراجع
-    if (recentCheckins.length && recentCheckins[0].id === lastCheckinUndo.id) {
-      recentCheckins.shift();
+    // شيل العملية المطابقة من السجل بالمفتاح الفريد (مش آخر واحدة بالاسم)
+    const before = recentCheckins.length;
+    recentCheckins = recentCheckins.filter(c => c.key !== lastCheckinUndo.key);
+    if (recentCheckins.length !== before) {
       renderRecentCheckins();
       saveData();
     }
