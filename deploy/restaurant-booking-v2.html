@@ -4476,6 +4476,7 @@ window.onload = async () => {
   applyI18n();
   applyUX();
   cloudInit();
+  await initPushSubscription();
   seedUsers();
   // استعادة الجلسة: Supabase أولاً، ثم المحلي
   let cloudSession = false;
@@ -6962,6 +6963,17 @@ function clearNotifications() {
 
 const VAPID_PUBLIC_KEY = 'BMDd9uzN6oJlD6Kwem-uExONqDIJE1LqNWPPbzgpUH8TwYxL0Jflf5EzQiexZPuVk5h-t5GCnqYJa3czPrgDz2E';
 let pushSubscription = null;
+// استعادة الاشتراك عند كل تحميل للصفحة — بدونه بيحصل إشعار محلي + push لنفس الجهاز
+async function initPushSubscription() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) {
+      pushSubscription = await reg.pushManager.getSubscription();
+      setNotifStatus(!!pushSubscription);
+    }
+  } catch (e) {}
+}
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -7058,10 +7070,11 @@ function bookingPushData(b) {
   const z = zones.find(x => x.id === b.zoneId) || {};
   return {
     id: b.id || '',
-    name: b.name || '', date: b.date || '', time: b.start || '',
+    name: b.name || '', date: b.date || '', time: b.start || '', endTime: b.end || '',
     zoneAr: z.name || '', zoneEn: z.nameEn || '', eventType: b.type || '',
     packageName: (z.packageNames && z.packageNames[b.packageIndex]) || '',
-    guests: Number(b.guests) || 0
+    guests: Number(b.guests) || 0,
+    lang: currentLang, origin: location.origin
   };
 }
 async function sendBookingPush(type, data) {
@@ -7092,10 +7105,17 @@ async function sendBookingPush(type, data) {
     console.warn('send-push error:', e);
   }
 }
-function tryNativeNotify(title, body) {
+async function tryNativeNotify(title, body) {
   try {
-    if (pushSubscription) return; // الـ push بيغطي الإشعار — ما نكررش
     if (!('Notification' in window)) return;
+    // لو المتغير فاضي بعد refresh، شيك على الاشتراك الحقيقي في المتصفح
+    if (!pushSubscription && 'serviceWorker' in navigator && 'PushManager' in window) {
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) pushSubscription = await reg.pushManager.getSubscription();
+      } catch (e) {}
+    }
+    if (pushSubscription) return; // الـ push بيغطي الإشعار — ما نكررش
     if (Notification.permission === 'granted') {
       new Notification(title, { body: body, icon: '' });
     } else if (Notification.permission !== 'denied') {

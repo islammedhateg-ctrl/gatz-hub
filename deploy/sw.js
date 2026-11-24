@@ -35,8 +35,8 @@ self.addEventListener('push', (e) => {
   const title = data.title || 'Gatz. Hub';
   const options = {
     body: data.body || '',
-    icon: './gatz-brand-icon.png',
-    badge: './gatz-brand-icon.png',
+    icon: data.icon || './gatz-brand-icon.png',
+    badge: data.badge || data.icon || './gatz-brand-icon.png',
     tag: data.tag || 'gatz-hub',
     data: { url: data.url || '#dashboard' },
     vibrate: [120, 60, 120]
