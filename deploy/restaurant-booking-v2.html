@@ -5679,7 +5679,7 @@ function nextStep() {
       return;
     }
     // conflict check
-    const conflict = bookings.find(b => b.zoneId === selectedZoneId && b.date === date && (start < b.end && end > b.start));
+    const conflict = bookings.find(b => b.id !== editingBookingId && !b.cancelled && b.zoneId === selectedZoneId && b.date === date && (start < b.end && end > b.start));
     if (conflict) {
       confirmAction('تعارض حجز', `Zone محجوزة لـ ${conflict.name} (${conflict.start}-${conflict.end}). متابعة؟`).then(ok => {
         if (ok) { currentStep = 3; updateStepper(); }
