@@ -5900,7 +5900,10 @@ function nextGuestId() {
     const n = parseInt((g.id || '').replace(/\D/g, ''), 10);
     return isNaN(n) ? m : Math.max(m, n);
   }, 0);
-  return 'GST-' + String(maxNum + 1).padStart(4, '0');
+  // رقم متسلسل محفوظ — الحذف ما يرجّعش رقم قديم فيعيد تشغيل QR قديم
+  let seq = Math.max(Number(localStorage.getItem('rest_guest_seq')) || 0, maxNum) + 1;
+  try { localStorage.setItem('rest_guest_seq', String(seq)); } catch (e) {}
+  return 'GST-' + String(seq).padStart(4, '0');
 }
 
 /* === روابط الدعوة: كود مضغوط (Base64URL) بدل JSON طويل === */
@@ -5918,9 +5921,9 @@ function b64urlDecode(s) {
   return new TextDecoder().decode(bytes);
 }
 function makeInviteCode(b) {
-  // الحقل ``e`` إلزامي — نستخدم ~ كفاصل (يُستبدل إن وُجد في الاسم)
+  // الرابط بيحمل ID الحجز بس — البيانات بتتقرأ من الحجز وقت فتح الرابط (مش وقت الإنشاء)
   const clean = v => String(v == null ? '' : v).replace(/~/g, ' ');
-  return b64urlEncode([b.id, b.name, b.type, b.date, b.start, b.end, b.zoneId].map(clean).join('~'));
+  return b64urlEncode([b.id, b.name].map(clean).join('~'));
 }
 function parseInviteCode(code) {
   // توافق مع الصيغة القديمة: JSON مُشفَّر بـ encodeURIComponent
@@ -5929,6 +5932,30 @@ function parseInviteCode(code) {
   }
   const p = b64urlDecode(code).split('~');
   return { e: p[0], n: p[1], t: p[2], d: p[3], s: p[4], en: p[5], z: p[6] };
+}
+// حلّ بيانات الدعوة من الحجز الحالي — أي تعديل على الحجز ينعكس فوراً على الرابط/Tذكرة
+function resolveInviteData(raw) {
+  const data = raw || {};
+  const bk = bookings.find(b => b.id === data.e);
+  if (!bk) return { ...data, missing: true };
+  return {
+    ...data,
+    n: bk.name || data.n || '',
+    t: bk.type || data.t || '',
+    d: bk.date || data.d || '',
+    s: bk.start || data.s || '',
+    en: bk.end || data.en || '',
+    z: bk.zoneId || data.z || '',
+    booking: bk
+  };
+}
+function inviteBlockReason(data) {
+  if (!data || !data.e) return currentLang === 'ar' ? 'رابط الدعوة غير صالح' : 'Invalid invite link';
+  const bk = data.booking || bookings.find(b => b.id === data.e);
+  if (!bk) return currentLang === 'ar' ? 'الحجز المرتبط بالرابط غير موجود' : 'The booking for this invite no longer exists';
+  if (bk.cancelled) return currentLang === 'ar' ? 'هذا الحجز ملغي — مش ممكن التسجيل منه' : 'This booking is cancelled — registration is closed';
+  if (bk.date && bk.date < todayStr()) return currentLang === 'ar' ? 'هذا الحجز انتهى — مش ممكن التسجيل منه' : 'This booking has passed — registration is closed';
+  return '';
 }
 function inviteBaseUrl() {
   const configured = (publicAppUrl || '').trim();
@@ -5979,8 +6006,13 @@ function handleInviteHash() {
   const hash = location.hash || '';
   if (!hash.startsWith('#invite=')) return false;
   try {
-    const data = parseInviteCode(hash.slice('#invite='.length));
-    if (!data.e) return false;
+    const data = resolveInviteData(parseInviteCode(hash.slice('#invite='.length)));
+    const reason = inviteBlockReason(data);
+    if (reason) {
+      toast(reason, 'warning');
+      history.replaceState(null, '', location.pathname + location.search);
+      return true;
+    }
     currentInviteData = data;
     const zone = zones.find(z => z.id === data.z) || { name: data.z, nameEn: data.z };
     const desc = document.getElementById('guestreg-event-desc');
@@ -6007,8 +6039,12 @@ async function submitGuestRegistration() {
       : 'Invalid phone — must start with 01 and be 11 digits';
     errEl.style.display = 'block'; return;
   }
+  const data = resolveInviteData(currentInviteData);
+  const blockReason = inviteBlockReason(data);
+  if (blockReason) {
+    errEl.textContent = blockReason; errEl.style.display = 'block'; return;
+  }
   errEl.style.display = 'none';
-  const data = currentInviteData || {};
   let guest;
 
   // Supabase: تسجيل عبر الدالة الآمنة (بدون تسجيل دخول الضيف)
@@ -6128,41 +6164,46 @@ function validatePhones(fields) {
 /* ============================================================
    GUESTS TABLE
    ============================================================ */
+// اسم المناسبة من الحجز الحالي — مصدر واحد للجدول والفلتر والرسم البياني
+function guestEventLabel(g) {
+  const bk = bookings.find(b => b.id === g.eventId);
+  return bk ? (bk.type || bk.name || g.eventId) : (g.eventName || g.eventId || t('guests.invited'));
+}
+function filteredGuests() {
+  const raw = (document.getElementById('guests-search')?.value || '').trim();
+  const search = raw.toLowerCase();
+  const filterEvent = document.getElementById('guests-event-filter')?.value || '';
+  const filterStatus = document.getElementById('guests-status-filter')?.value || '';
+  const phoneNeedle = /\d/.test(raw) ? normalizeEgyptPhone(raw) : '';
+  let list = [...guests];
+  if (search || phoneNeedle.length >= 3) {
+    list = list.filter(g =>
+      (g.name||'').toLowerCase().includes(search)
+      || (g.phone||'').includes(search)
+      || (phoneNeedle.length >= 3 && normalizeEgyptPhone(g.phone).includes(phoneNeedle))
+      || (g.eventId||'').toLowerCase().includes(search)
+      || guestEventLabel(g).toLowerCase().includes(search)
+    );
+  }
+  if (filterEvent) list = list.filter(g => guestEventLabel(g) === filterEvent);
+  if (filterStatus === 'checked') list = list.filter(g => g.checkedIn);
+  else if (filterStatus === 'pending') list = list.filter(g => !g.checkedIn);
+  return list;
+}
 function renderGuests() {
   const wrap = document.getElementById('guests-table-wrap');
   if (!wrap) return;
-  const search = (document.getElementById('guests-search')?.value || '').toLowerCase().trim();
-  const filterEvent = document.getElementById('guests-event-filter')?.value || '';
-  const filterStatus = document.getElementById('guests-status-filter')?.value || '';
-  // populate event filter من نفس قائمة «نوع الحجز» في نموذج حجز جديد
+  // فلتر المناسبات من بيانات الضيوف نفسها (مش من نوع حجز منفصل)
   const ef = document.getElementById('guests-event-filter');
-  if (ef && ef.options.length <= 1) {
-    const typeSource = document.getElementById('b-type');
-    const sourceOptions = typeSource
-      ? [...typeSource.options]
-      : [...new Set(bookings.map(b => b.type).filter(Boolean))].map(tp => ({ value: tp, text: tp, key: null }));
-    sourceOptions.forEach(src => {
-      if (!src.value) return;
-      const o = document.createElement('option');
-      o.value = src.value;
-      const key = src.getAttribute && src.getAttribute('data-i18n');
-      o.textContent = key ? t(key) : (src.text || src.value);
-      ef.appendChild(o);
-    });
+  if (ef) {
+    const cur = ef.value;
+    const labels = [...new Set(guests.map(guestEventLabel).filter(Boolean))].sort();
+    const allLabel = t('guests.allEvents');
+    ef.innerHTML = `<option value="">${escapeHtml(allLabel)}</option>`
+      + labels.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
+    ef.value = labels.includes(cur) ? cur : '';
   }
-  let list = [...guests];
-  // البحث خاص بالضيوف: اسم الضيف + هاتف الضيف + كود الحجز المرتبط به
-  if (search) list = list.filter(g =>
-    (g.name||'').toLowerCase().includes(search)
-    || (g.phone||'').includes(search)
-    || (g.eventId||'').toLowerCase().includes(search)
-  );
-  if (filterEvent) list = list.filter(g => {
-    const bk = bookings.find(x => x.id === g.eventId);
-    return bk && bk.type === filterEvent;
-  });
-  if (filterStatus === 'checked') list = list.filter(g => g.checkedIn);
-  else if (filterStatus === 'pending') list = list.filter(g => !g.checkedIn);
+  const list = filteredGuests();
   // stats
   const gt = document.getElementById('guest-stat-total'); if (gt) gt.textContent = guests.length;
   const gc = document.getElementById('guest-stat-checked'); if (gc) gc.textContent = guests.filter(g=>g.checkedIn).length;
@@ -6176,7 +6217,7 @@ function renderGuests() {
   const ebEl = document.getElementById('guests-event-bars');
   if (ebEl) {
     const byEvent = {};
-    guests.forEach(g => { const k = g.eventName || g.eventId || t('guests.invited'); byEvent[k] = (byEvent[k]||0)+1; });
+    guests.forEach(g => { const k = guestEventLabel(g); byEvent[k] = (byEvent[k]||0)+1; });
     const entries = Object.entries(byEvent);
     const max = Math.max(1, ...entries.map(e=>e[1]));
     if (entries.length === 0) {
@@ -6198,7 +6239,7 @@ function renderGuests() {
       <td class="cell-customer">${escapeHtml(g.name)}</td>
       <td dir="ltr" style="text-align:start;">${escapeHtml(g.phone)}</td>
       <td>${escapeHtml(g.birthdate || '—')}</td>
-      <td>${escapeHtml(g.eventName || g.eventId || '—')}</td>
+      <td>${escapeHtml(guestEventLabel(g))}</td>
       <td>${g.checkedIn ? `<span class="badge badge-success">${t('guests.entered')}</span>` : `<span class="badge badge-pending">${t('guests.notEntered')}</span>`}</td>
       <td>
         <button class="btn btn-ghost btn-sm" onclick="showGuestTicketById('${jsSafe(g.id)}')" title="Ticket"><i class="fa-solid fa-ticket"></i></button>
@@ -6219,19 +6260,45 @@ function showGuestTicketById(id) {
   showGuestTicket(g, { t: bk.type, d: bk.date, s: bk.start, en: bk.end, z: bk.zoneId });
 }
 
-function deleteGuest(id) {
-  confirmAction(t('guests.delete'), t('guests.deleteConfirm')).then(ok => {
-    if (!ok) return;
-    guests = guests.filter(g => g.id !== id);
-    saveData(); renderGuests();
-    toast(t('toast.deleted'), 'success');
-  });
+async function deleteGuest(id) {
+  const ok = await confirmAction(t('guests.delete'), t('guests.deleteConfirm'));
+  if (!ok) return;
+  const g = guests.find(x => x.id === id);
+  if (!g) return;
+  // الحذف لازم يوصل للسحابة وإلا cloudLoad هيرجّع الضيف تاني
+  if (CLOUD.enabled && CLOUD.client) {
+    const { error } = await CLOUD.client.from('guests').delete().eq('id', id);
+    if (error) {
+      toast(error.message || (currentLang === 'ar' ? 'تعذّر حذف الضيف من السحابة' : 'Could not delete guest from the cloud'), 'error');
+      return;
+    }
+  }
+  guests = guests.filter(x => x.id !== id);
+  // لو الضيف داخل، نرجّع عدّاد الحجز ونشيل أثره من سجل الدخول
+  if (g.checkedIn) {
+    const bk = bookings.find(b => b.id === g.eventId);
+    if (bk && bk.checkedIn > 0) {
+      bk.checkedIn--;
+      if (CLOUD.enabled && CLOUD.client) {
+        CLOUD.client.from('bookings').update({ checked_in: bk.checkedIn })
+          .eq('id', bk.id).then(() => {}).catch(e => cloudWarn(e));
+      }
+    }
+    const removedItems = recentCheckins.filter(c => c.guestId === id);
+    recentCheckins = recentCheckins.filter(c => c.guestId !== id);
+    if (lastCheckinUndo && removedItems.some(c => c.key === lastCheckinUndo.key)) lastCheckinUndo = null;
+    renderRecentCheckins();
+  }
+  saveData(); renderGuests(); renderAll();
+  toast(t('toast.deleted'), 'success');
 }
 
 function exportGuestsCSV() {
+  // نفس فلاتر البحث/المناسبة/الحالة الظاهرة في الجدول
+  const list = filteredGuests();
   const headers = ['ID','Name','Phone','Birthdate','Event','CheckedIn','CreatedAt'];
-  const rows = guests.map(g => [g.id,g.name,g.phone,g.birthdate,g.eventName,g.checkedIn,g.createdAt]);
-  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const rows = list.map(g => [g.id,g.name,g.phone,g.birthdate,guestEventLabel(g),g.checkedIn ? 'Yes' : 'No',g.createdAt]);
+  const csv = '\uFEFF' + [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'guests.csv'; a.click();
@@ -7546,25 +7613,36 @@ function handleScannedCode(code) {
       }
       g.checkedIn = true;
       g.entryTime = new Date().toISOString();
-      saveData(); renderGuests();
+      // تسجيل الدخول يظهر في «آخر عمليات الدخول» زي عدّاد الحجز
+      const guestKey = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      recentCheckins.unshift({ id: g.eventId || g.id, name: g.name, count: 1, key: guestKey, guestId: g.id, time: new Date().toLocaleTimeString() });
+      if (recentCheckins.length > 8) recentCheckins.pop();
+      saveData(); renderGuests(); renderRecentCheckins();
       if (CLOUD.enabled && CLOUD.client) {
         CLOUD.client.from('guests').update({ checked_in: true, entry_time: g.entryTime })
           .eq('id', g.id).then(() => {}).catch(e => cloudWarn(e));
       }
-      // زيادة عدّاد المناسبة إن وُجدت
-      if (bk && bk.checkedIn < bk.guests) {
-        bk.checkedIn++; saveData(); renderAll();
-        if (CLOUD.enabled && CLOUD.client) {
-          CLOUD.client.from('bookings').update({ checked_in: bk.checkedIn })
-            .eq('id', bk.id).then(() => {}).catch(() => {});
+      // زيادة عدّاد المناسبة إن وُجدت؛ لو وصل للحد الأعلى نبه بدل ما نزيد بصمت
+      let counterWarn = '';
+      if (bk) {
+        if (bk.checkedIn < bk.guests) {
+          bk.checkedIn++; saveData(); renderAll();
+          if (CLOUD.enabled && CLOUD.client) {
+            CLOUD.client.from('bookings').update({ checked_in: bk.checkedIn })
+              .eq('id', bk.id).then(() => {}).catch(() => {});
+          }
+        } else {
+          counterWarn = currentLang === 'ar'
+            ? '⚠ عدّاد الحجز وصل للحد الأعلى — الضيف اعتُبر داخل، راجع العدد'
+            : '⚠ Booking counter is full — guest marked entered, please review';
         }
       }
       if (doorBeepEnabled) playBeep(880, 140);
-      toast((currentLang === 'ar' ? 'ضيف: ' : 'Guest: ') + g.name + ' ✅', 'success');
+      toast((currentLang === 'ar' ? 'ضيف: ' : 'Guest: ') + g.name + ' ✅' + (counterWarn ? ' — ' + counterWarn : ''), counterWarn ? 'warning' : 'success');
       if (navigator.vibrate) navigator.vibrate(120);
       // اعرض بطاقة الضيف في البوابة
       document.getElementById('door-b-name').textContent = g.name;
-      document.getElementById('door-b-zone').textContent = g.eventName || 'دعوة';
+      document.getElementById('door-b-zone').textContent = guestEventLabel(g);
       document.getElementById('door-b-id').textContent = g.id;
       document.getElementById('door-b-type').textContent = t('guests.invited');
       document.getElementById('door-b-time').textContent = g.birthdate || '—';
