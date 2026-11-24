@@ -1681,18 +1681,6 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           <div class="card-header">
             <div class="card-title"><i class="fa-solid fa-ban" style="color:var(--warning);"></i> <span data-i18n="cancel.reportTitle">تقرير الحجوزات الملغية</span></div>
           </div>
-          <!-- بطاقة الشرح -->
-          <div style="display:flex; gap:12px; align-items:flex-start; background:var(--warning-soft); border-radius:var(--radius); padding:14px 16px; margin-bottom:16px;">
-            <div style="width:38px;height:38px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;flex:0 0 38px;">
-              <i class="fa-solid fa-circle-info" style="color:var(--warning);"></i>
-            </div>
-            <div style="flex:1; font-size:.85rem; line-height:1.8; color:var(--text-2);">
-              <b data-i18n="cancel.explainTitle">ماذا يعني هذا التقرير؟</b><br>
-              <span data-i18n="cancel.explain1">• عند إلغاء حجز، يبقى في السجل بعلامة «ملغي» ولا يُحذف نهائياً — يمكنك استعادته من زر ↩ في الجدول.</span><br>
-              <span data-i18n="cancel.explain2">• الأرقام أعلاه تحسب الحجوزات الملغية فقط (لا تُحتسب في إحصائيات لوحة المتابعة أو الحسابات).</span><br>
-              <span data-i18n="cancel.explain3">• استخدم فلتر «الحالة» = «ملغي» أسفل الجدول لعرض هذه القائمة، وهذه البطاقة تظهر تلقائياً معه.</span>
-            </div>
-          </div>
           <div class="stats-grid" style="grid-template-columns:repeat(3,1fr); margin-bottom:16px;">
             <div class="stat-card">
               <div class="icon warning"><i class="fa-solid fa-ban"></i></div>
@@ -1710,12 +1698,6 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
               <div class="value num" id="cancel-stat-deposit" style="font-size:1.6rem;">0</div>
             </div>
           </div>
-          <div style="display:flex; align-items:center; gap:8px; font-size:.8rem; font-weight:700; color:var(--text-2); margin-bottom:10px;">
-            <i class="fa-solid fa-chart-column" style="color:var(--primary);"></i>
-            <span data-i18n="cancel.byReason">توزيع الأسباب</span>
-            <span style="font-weight:400; color:var(--muted); font-size:.75rem;" data-i18n="cancel.byReasonHint">— عدد الحجوزات لكل سبب إلغاء</span>
-          </div>
-          <div id="cancel-reason-bars"></div>
         </div>
         <div class="card table-card">
           <div id="bookings-table-wrap"></div>
@@ -3097,12 +3079,6 @@ const I18N = {
     'cancel.total': 'عدد الملغية',
     'cancel.guestsLost': 'ضيوف مفقودون',
     'cancel.depositLost': 'ديبوزيت مفقود',
-    'cancel.byReason': 'توزيع الأسباب',
-    'cancel.explainTitle': 'ماذا يعني هذا التقرير؟',
-    'cancel.explain1': '• عند إلغاء حجز، يبقى في السجل بعلامة «ملغي» ولا يُحذف نهائياً — يمكنك استعادته من زر ↩ في الجدول.',
-    'cancel.explain2': '• الأرقام أعلاه تحسب الحجوزات الملغية فقط (لا تُحتسب في لوحة المتابعة أو الحسابات).',
-    'cancel.explain3': '• استخدم فلتر «الحالة» = «ملغي» لعرض هذه القائمة، وهذه البطاقة تظهر تلقائياً معه.',
-    'cancel.byReasonHint': '— عدد الحجوزات لكل سبب إلغاء',
     'settings.backup': 'النسخ الاحتياطي',
     'settings.backupExport': 'تصدير البيانات',
     'settings.backupImport': 'استيراد البيانات',
@@ -3494,7 +3470,6 @@ const I18N = {
     'cancel.total': 'Total Cancelled',
     'cancel.guestsLost': 'Guests Lost',
     'cancel.depositLost': 'Deposit Lost',
-    'cancel.byReason': 'By Reason',
     'settings.backup': 'Backup & Restore',
     'settings.backupExport': 'Export Data',
     'settings.backupImport': 'Import Data',
@@ -5071,21 +5046,6 @@ function renderBookings() {
       const cs = document.getElementById('cancel-stat-total'); if (cs) cs.textContent = cancelledAll.length;
       const cg = document.getElementById('cancel-stat-guests'); if (cg) cg.textContent = cancelledAll.reduce((s,b)=>s+(b.guests||0),0);
       const cd = document.getElementById('cancel-stat-deposit'); if (cd) cd.textContent = formatMoney(cancelledAll.reduce((s,b)=>s+(b.deposit||0),0)) + ' ' + cur();
-      // توزيع الأسباب
-      const byReason = {};
-      cancelledAll.forEach(b => { const k = b.cancelReason || 'other'; byReason[k] = (byReason[k]||0)+1; });
-      const entries = Object.entries(byReason).sort((a,b)=>b[1]-a[1]);
-      const max = Math.max(1, ...entries.map(e=>e[1]));
-      const barsEl = document.getElementById('cancel-reason-bars');
-      if (barsEl) {
-        barsEl.innerHTML = entries.length === 0
-          ? `<div style="color:var(--muted); font-size:.85rem;">${t('guests.empty')}</div>`
-          : entries.map(([reason, count]) => `
-            <div class="zone-bar" style="margin-bottom:12px;">
-              <div class="row"><b>${escapeHtml(cancelReasonLabel(reason))}</b><span class="num" style="color:var(--muted);">${count}</span></div>
-              <div class="track"><div class="fill" style="width:${Math.round(count/max*100)}%; background:var(--warning);"></div></div>
-            </div>`).join('');
-      }
     }
   }
   // populate zone filter
