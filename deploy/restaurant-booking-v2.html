@@ -6895,6 +6895,10 @@ function qrTicketLines(b) {
     '📦 ' + (rawPkg ? pkgEn : '—')
   ];
 }
+// نص مشاركة الصورة: لينك الدعوة فقط — بيانات الحجز موجودة جوه الصورة
+function buildCustomerShareText(b) {
+  return 'Invite friends to get their own entry QR:\n' + buildInviteLink(b);
+}
 // توليد QR في حاوية مؤقتة (يعمل حتى لو لم تُفتح نافذة التذكرة)
 function makeQrDataUrl(text, size, opts) {
   const s = Number(size) || QR_SHARE_SIZE;
@@ -6977,7 +6981,7 @@ async function shareQRWithImage(id) {
   const b = bookings.find(x => x.id === (id || currentQrBookingId));
   if (!b) return;
   const url = qrImageDataUrl(b);
-  const text = buildCustomerWaMessage(b);
+  const text = buildCustomerShareText(b);
   const filename = 'Gatz-' + b.id + '-QR.png';
   if (url && navigator.share && navigator.canShare) {
     try {
