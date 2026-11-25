@@ -7056,7 +7056,7 @@ function makeQrDataUrl(text, size, opts) {
     });
 
     // QR الحجز (BK-...) — زي ما هو، بدون GST:
-    ctx.fillStyle = '#075e54'; ctx.fillRect(cardX + cardPad, y + 12, cardW - 2 * cardPad, 2);
+    ctx.fillStyle = '#075e54'; ctx.fillRect(cardX + cardPad, y + 6, cardW - 2 * cardPad, 2);
     const qrX = (W - s) / 2, qrY = y + 20;
     gatzRoundRect(ctx, qrX - 8, qrY - 8, s + 16, s + 16, 8);
     ctx.fillStyle = '#fff'; ctx.fill();
