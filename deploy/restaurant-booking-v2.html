@@ -3241,7 +3241,7 @@ const I18N = {
     'settings.notifSoundCancelled': 'صوت: إلغاء حجز',
     'theme.light': 'فاتح',
     'theme.dark': 'داكن',
-    'qr.title': 'تذكرة دخول (QR)',
+    'qr.title': 'تأكيد الحجز',
     'qr.hint': 'أبرز هذا الكود لموظف البوابة',
     'qr.whatsapp': 'إرسال واتساب',
     'qr.print': 'طباعة',
@@ -3646,7 +3646,7 @@ const I18N = {
     'settings.notifSoundCancelled': 'Sound: cancelled',
     'theme.light': 'Light',
     'theme.dark': 'Dark',
-    'qr.title': 'Entry Ticket (QR)',
+    'qr.title': 'Booking Confirmation',
     'qr.hint': 'Show this code to door staff',
     'qr.whatsapp': 'Send WhatsApp',
     'qr.print': 'Print',
@@ -6919,6 +6919,9 @@ function openBookingDetails(id) {
 
 let currentQrBookingId = null;
 const QR_SHARE_SIZE = 180;
+// لوجو Gatz. المقطوع — نفس أصل تذكرة الضيف، يُستخدم في تأكيد الحجز
+const GATZ_WORD_IMG = new Image();
+GATZ_WORD_IMG.src = 'gatz-word-text.png';
 
 // رسالة واتساب واحدة تُرسل للعميل: تذكرة الحجز + رابط دعوة الأصدقاء.
 // ملاحظة: صورة QR لا تُرفق عبر wa.me (نص فقط) — الكود يظهر في التطبيق ويُذكر في الرسالة.
@@ -6954,65 +6957,126 @@ function qrTicketLines(b) {
 function buildCustomerShareText(b) {
   return buildInviteLink(b);
 }
-// توليد QR في حاوية مؤقتة (يعمل حتى لو لم تُفتح نافذة التذكرة)
+// صفوف تأكيد الحجز — إنجليزي دايماً، ونفس لغة/ترتيب تذكرة الضيف
+function bookingTicketRows(b) {
+  const zone = zones.find(z => z.id === b.zoneId) || { name: b.zoneId, nameEn: b.zoneId };
+  const pi = Number(b.packageIndex);
+  const perPerson = Number(b.feePerPerson) || (Number.isInteger(pi) && pi >= 0 ? Number(packagePrices()[pi]) || 0 : 0);
+  const time = ((b.start || '') + ' – ' + (b.end || '')).trim() || '—';
+  return [
+    ['Name', b.name || '—'],
+    ['Booking ID', b.id || '—'],
+    ['Occasion', guestTicketTypeEn(b.type)],
+    ['Date', b.date || '—'],
+    ['Time', time],
+    ['Zone', zoneNameEn(zone) || '—'],
+    ['Guests', String(Number(b.guests) || 0)],
+    ['Package', guestTicketPackageEn(b)],
+    ['Deposit', formatMoney(Number(b.deposit) || 0) + ' EGP'],
+    ['Entry Fee', formatMoney(perPerson) + ' EGP']
+  ];
+}
+function gatzRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+// توليد صورة تأكيد الحجز بنفس تصميم تذكرة الضيف (شريط أسود + كارت إنجليزي)
 function makeQrDataUrl(text, size, opts) {
+  const b = opts && opts.booking;
+  if (!b) return '';
   const s = Number(size) || QR_SHARE_SIZE;
-  const tmp = document.createElement('div');
-  tmp.style.cssText = 'position:absolute;left:-99999px;top:-99999px;width:1px;height:1px;overflow:hidden;';
-  document.body.appendChild(tmp);
+  let tmp = null;
   try {
-    new QRCode(tmp, { text: text, width: s, height: s });
-    const src = tmp.querySelector('canvas');
-    if (!src) {
-      const img = tmp.querySelector('img');
-      return img && img.src && img.src.indexOf('data:image') === 0 ? img.src : '';
-    }
-    const caption = (opts && opts.caption) ? String(opts.caption) : '';
-    const lines = (opts && Array.isArray(opts.lines)) ? opts.lines : [];
-    const frame = 21, pad = 8, lineH = 14;
-    const w = s + 2 * (frame + pad);
-    const h = frame + pad + s + (caption ? 18 : 0) + (lines.length ? 6 + lines.length * lineH : 0) + 8 + pad + frame;
-    // دقة مضاعفة فعلية: واتساب ينزّل الصورة عند العرض فيطلع الكلام حاد مش مبكسل
-    const SS = 2;
+    tmp = document.createElement('div');
+    tmp.style.cssText = 'position:absolute;left:-99999px;top:-99999px;width:1px;height:1px;overflow:hidden;';
+    document.body.appendChild(tmp);
+    new QRCode(tmp, { text: String(text || b.id || ''), width: s, height: s });
+    const qrCanvas = tmp.querySelector('canvas');
+    if (!qrCanvas) return '';
+
+    const SS = 2;              // تصدير بدقة مضاعفة حقيقية — من غير بكسلة في واتساب
+    const W = 360, barH = 104, bodyPad = 16, cardPad = 14, rowH = 24;
+    const rows = bookingTicketRows(b);
+    const cardW = W - bodyPad * 2;
+    const cardH = cardPad + rows.length * rowH + (s + 46) + cardPad;
+    const H = barH + bodyPad + cardH + bodyPad;
     const out = document.createElement('canvas');
-    out.width = w * SS; out.height = h * SS;
+    out.width = W * SS; out.height = H * SS;
     const ctx = out.getContext('2d');
     ctx.scale(SS, SS);
-    ctx.fillStyle = '#075e54'; ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#fff'; ctx.fillRect(frame, frame, w - 2 * frame, h - 2 * frame);
-    ctx.drawImage(src, frame + pad, frame + pad, s, s);
-    let y = frame + pad + s;
-    if (caption) {
-      y += 12;
-      ctx.fillStyle = '#111';
-      ctx.font = '700 10px Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText(caption, w / 2, y);
-      y += 5;
+    ctx.textBaseline = 'middle';
+
+    // الشريط الأسود + لوجو Gatz. المقطوع من اللوجو الأصلي
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, barH);
+    let logoH = 52;
+    if (GATZ_WORD_IMG.complete && GATZ_WORD_IMG.naturalWidth) {
+      const lw = 150;
+      logoH = lw * GATZ_WORD_IMG.naturalHeight / GATZ_WORD_IMG.naturalWidth;
+      ctx.drawImage(GATZ_WORD_IMG, (W - lw) / 2, 8, lw, logoH);
+    } else {
+      ctx.fillStyle = '#fff'; ctx.font = '900 26px Arial, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Gatz.', W / 2, 36);
     }
-    if (lines.length) {
-      ctx.fillStyle = '#0b3d34';
-      ctx.font = '700 10px Arial, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'alphabetic';
-      lines.forEach(line => { y += lineH; ctx.fillText(line, frame + pad + 1, y); });
-    }
+    const passY = 8 + logoH + 12 + 6;
+    const passLabel = 'Booking Confirmation ';
+    const passId = String(b.id || '');
+    ctx.font = '800 10px Arial, sans-serif';
+    const wLabel = ctx.measureText(passLabel).width;
+    const wId = ctx.measureText(passId).width;
+    let px = (W - wLabel - wId) / 2;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#fff'; ctx.fillText(passLabel, px, passY);
+    ctx.fillStyle = '#b9c0c6'; ctx.fillText(passId, px + wLabel, passY);
+
+    // الخلفية والكارت الأبيض
+    ctx.fillStyle = '#f4f6f8'; ctx.fillRect(0, barH, W, H - barH);
+    const cardX = bodyPad, cardY = barH + bodyPad;
+    gatzRoundRect(ctx, cardX, cardY, cardW, cardH, 12);
+    ctx.fillStyle = '#fff'; ctx.fill();
+
+    // الصفوف: العنوان شمال والقيمة يمين، زي كارت الضيف بالظبط
+    let y = cardY + cardPad + rowH / 2;
+    rows.forEach(([k, v], i) => {
+      ctx.font = '700 10.5px Arial, sans-serif';
+      ctx.fillStyle = '#64748b'; ctx.textAlign = 'left';
+      ctx.fillText(k, cardX + cardPad, y);
+      ctx.fillStyle = (k === 'Deposit' || k === 'Entry Fee') ? '#075e54' : '#0f1f24';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(v), cardX + cardW - cardPad, y);
+      if (i < rows.length - 1) {
+        ctx.strokeStyle = '#dbe4e8'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cardX + cardPad, y + rowH / 2); ctx.lineTo(cardX + cardW - cardPad, y + rowH / 2); ctx.stroke();
+      }
+      y += rowH;
+    });
+
+    // QR الحجز (BK-...) — زي ما هو، بدون GST:
+    ctx.fillStyle = '#075e54'; ctx.fillRect(cardX + cardPad, y + 12, cardW - 2 * cardPad, 2);
+    const qrX = (W - s) / 2, qrY = y + 20;
+    gatzRoundRect(ctx, qrX - 8, qrY - 8, s + 16, s + 16, 8);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = '#dbe4e8'; ctx.stroke();
+    ctx.drawImage(qrCanvas, qrX, qrY, s, s);
+    ctx.fillStyle = '#64748b'; ctx.font = '700 11px Arial, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Show this code at the door', W / 2, qrY + s + 14);
+
     return out.toDataURL('image/png');
   } catch (e) {
     return '';
   } finally {
-    tmp.remove();
+    if (tmp) tmp.remove();
   }
 }
 // استخراج صورة QR للحجز: من النافذة إن كانت مفتوحة، وإلا نولّدها مباشرة
 function qrImageDataUrl(booking) {
   // دايماً صورة مشاركة صغيرة — حتى لو نافذة التذكرة مفتوحة
   const b = booking || bookings.find(x => x.id === currentQrBookingId);
-  return b ? makeQrDataUrl(b.id, QR_SHARE_SIZE, {
-    caption: 'Show the QR code at the entrance',
-    lines: qrTicketLines(b)
-  }) : '';
+  return b ? makeQrDataUrl(b.id, QR_SHARE_SIZE, { booking: b }) : '';
 }
 function dataUrlToFile(dataUrl, filename) {
   const parts = dataUrl.split(',');
@@ -7090,8 +7154,10 @@ function openQrModal(id) {
     ? '📲 واتساب: نص فقط · للمشاركة مع صورة QR استخدم «مشاركة بالصورة» (الموبايل)'
     : '📲 WhatsApp: text only · To attach the QR image use “Share with image” (mobile)';
   const container = document.getElementById('qrcode-container');
-  container.innerHTML = '';
-  new QRCode(container, { text: b.id, width: 220, height: 220 });
+  const ticketUrl = qrImageDataUrl(b);
+  container.innerHTML = ticketUrl
+    ? `<img src="${ticketUrl}" alt="Booking confirmation" style="display:block;width:100%;max-width:360px;border-radius:12px;">`
+    : '';
   // رسالة واتساب واحدة للعميل: تفاصيل الحجز + QR + رابط دعوة الأصدقاء (دائماً إنجليزي)
   const msg = buildCustomerWaMessage(b);
   document.getElementById('whatsapp-share-btn').href = `https://wa.me/${phoneForWa(b.whatsapp)}?text=${encodeURIComponent(msg)}`;
