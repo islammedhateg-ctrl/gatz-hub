@@ -2,7 +2,7 @@
 
 const STATIC_CACHE = 'gatz-hub-static-v14';
 const RUNTIME_CACHE = 'gatz-hub-runtime-v14';
-const PRECACHE = ['./restaurant-booking-v2.html', './html5-qrcode.min.js', './gatz-word.png', './gatz-brand-icon.png', './gatz-badge.png', './manifest.json'];
+const PRECACHE = ['./restaurant-booking-v2', './restaurant-booking-v2.html', './html5-qrcode.min.js', './gatz-word.png', './gatz-brand-icon.png', './gatz-badge.png', './manifest.json'];
 
 // تثبيت: تحميل الملفات الأساسية مسبقاً
 self.addEventListener('install', (e) => {
@@ -70,35 +70,47 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
 
+  // الأيقونات المثبّتة القديمة بتبعت /restaurant-booking-v2.html
+  // Cloudflare بيعمل 308 لـ /restaurant-booking-v2، وده بيفشل في وضع التطبيق المثبّت
+  // نعيد التوجيه جوّه الـ SW من غير redirect
+  let target = url;
+  let targetKey = req.url;
+  if (url.pathname.endsWith('/restaurant-booking-v2.html')) {
+    target = new URL(url.href);
+    target.pathname = target.pathname.replace(/\.html$/, '');
+    target.hash = '';
+    targetKey = target.href;
+  }
+
   // ملفات HTML → Stale-while-revalidate: عرض فوري من الكاش، وتحديث في الخلفية
   // force-update.html (أو ?fresh=1) يفضل Network-first عشان يجيب أحدث نسخة
-  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html') || url.pathname.endsWith('.html')) {
-    const mustBeFresh = url.pathname.endsWith('force-update.html') || url.searchParams.has('fresh');
+  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html') || url.pathname.endsWith('.html') || target.pathname.endsWith('.html')) {
+    const mustBeFresh = target.pathname.endsWith('force-update.html') || target.searchParams.has('fresh');
     if (mustBeFresh) {
       e.respondWith(
-        fetch(req)
+        fetch(targetKey)
           .then(res => {
             if (res && res.ok) {
               const copy = res.clone();
-              caches.open(RUNTIME_CACHE).then(c => c.put(req, copy));
+              caches.open(RUNTIME_CACHE).then(c => c.put(targetKey, copy));
             }
             return res;
           })
-          .catch(() => caches.match(req).then(r => r || caches.match('./restaurant-booking-v2.html')))
+          .catch(() => caches.match(targetKey).then(r => r || caches.match('./restaurant-booking-v2.html')))
       );
       return;
     }
-    const network = fetch(req)
+    const network = fetch(targetKey)
       .then(res => {
         if (res && res.ok) {
           const copy = res.clone();
-          caches.open(RUNTIME_CACHE).then(c => c.put(req, copy));
+          caches.open(RUNTIME_CACHE).then(c => c.put(targetKey, copy));
         }
         return res;
       })
-      .catch(() => caches.match(req).then(r => r || caches.match('./restaurant-booking-v2.html')));
+      .catch(() => caches.match(targetKey).then(r => r || caches.match('./restaurant-booking-v2.html')));
     e.waitUntil(network.catch(() => {}));
-    e.respondWith(caches.match(req).then(cached => cached || network));
+    e.respondWith(caches.match(targetKey).then(cached => cached || network));
     return;
   }
 
