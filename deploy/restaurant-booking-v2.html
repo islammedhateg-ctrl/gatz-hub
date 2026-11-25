@@ -4259,6 +4259,7 @@ async function submitAuth() {
     try {
       const { profile } = await cloudSignIn(email, password);
       if (profile.active === false) { showAuthError(t('auth.errInactive')); return; }
+      await seedPushSession(); // جلسة الإشعارات تبقى شغالة حتى بعد الـ Logout
       currentUser = {
         id: profile.id, username, name: profile.full_name || username,
         role: profile.role, active: profile.active
@@ -4312,7 +4313,8 @@ async function submitAuth() {
 
 async function doLogout() {
   if (CLOUD.enabled && CLOUD.client) {
-    try { await CLOUD.client.auth.signOut(); } catch (e) { /* تجاهل */ }
+    // local فقط: يمسح جلسة الدخول من الجهاز من غير ما يبطل الـ refresh token بتاع الإشعارات
+    try { await CLOUD.client.auth.signOut({ scope: 'local' }); } catch (e) { /* تجاهل */ }
     if (CLOUD.channel) { CLOUD.client.removeChannel(CLOUD.channel); CLOUD.channel = null; }
     CLOUD.canPush = false;
   }
@@ -7899,14 +7901,14 @@ function bookingPushData(b) {
 }
 async function sendBookingPush(type, data) {
   try {
-    // الإرسال يعتمد على جلسة Supabase فقط، لا على اشتراك الجهاز الذي أنشأ الحجز.
-    // جهاز الكمبيوتر قد لا يكون مشتركاً أصلاً ومع ذلك يجب أن يستلم الموبايل الإشعار.
+    // الإرسال يعتمد على جلسة الإشعارات المستقلة، لا على اشتراك الجهاز اللي عمل الحجز
+    // ولا على جلسة الدخول — فالـ Logout ما يمنعش وصول الإشعارات.
     if (!CLOUD.enabled || !CLOUD.client) return;
-    const { data: sess } = await CLOUD.client.auth.getSession();
-    if (!sess || !sess.session) { console.warn('send-push: no Supabase session'); return; }
+    const token = await pushAccessToken();
+    if (!token) { console.warn('send-push: no Supabase session'); return; }
     const res = await fetch(CLOUD.URL + '/functions/v1/send-push', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sess.session.access_token },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({
         type, ...data, url: '#bookings',
         tag: 'gatz-' + type + '-' + (data.id || Date.now())
@@ -8765,6 +8767,49 @@ const CLOUD = {
   pushTimer: null, warned: false, channel: null, loading: false,
   loadedOnce: false, localNotify: {}, prevBookings: null, prevGuests: null
 };
+
+// جلسة مستقلة للإشعارات: storageKey مختلف عن جلسة الدخول، فالـ Logout ما يوقفهاش
+let pushClient = null;
+function getPushClient() {
+  if (!pushClient && window.supabase && CLOUD.URL && CLOUD.KEY) {
+    pushClient = window.supabase.createClient(CLOUD.URL, CLOUD.KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'gatz-push-auth' }
+    });
+  }
+  return pushClient;
+}
+async function seedPushSession() {
+  const pc = getPushClient();
+  if (!pc || !CLOUD.client) return false;
+  try {
+    const { data } = await CLOUD.client.auth.getSession();
+    const s = data && data.session;
+    if (!s) return false;
+    await pc.auth.setSession({ access_token: s.access_token, refresh_token: s.refresh_token });
+    return true;
+  } catch (e) { return false; }
+}
+async function pushAccessToken() {
+  const pc = getPushClient();
+  if (pc) {
+    try {
+      const { data } = await pc.auth.getSession();
+      if (data && data.session) return data.session.access_token;
+    } catch (e) {}
+  }
+  // الأجهزة القديمة: انسخ الجلسة الحالية للجلسة المستقلة عشان ما تتكررش المشكلة
+  if (CLOUD.client) {
+    try {
+      const { data } = await CLOUD.client.auth.getSession();
+      const s = data && data.session;
+      if (s) {
+        if (pc) { try { await pc.auth.setSession({ access_token: s.access_token, refresh_token: s.refresh_token }); } catch (e) {} }
+        return s.access_token;
+      }
+    } catch (e) {}
+  }
+  return null;
+}
 
 function cloudInit() {
   if (!window.supabase || !CLOUD.URL || !CLOUD.KEY) return false;
