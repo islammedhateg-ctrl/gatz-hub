@@ -6864,6 +6864,7 @@ function openBookingDetails(id) {
 }
 
 let currentQrBookingId = null;
+const QR_SHARE_SIZE = 180;
 
 // رسالة واتساب واحدة تُرسل للعميل: تذكرة الحجز + رابط دعوة الأصدقاء.
 // ملاحظة: صورة QR لا تُرفق عبر wa.me (نص فقط) — الكود يظهر في التطبيق ويُذكر في الرسالة.
@@ -6880,7 +6881,7 @@ function makeQrDataUrl(text, size) {
   tmp.style.cssText = 'position:absolute;left:-99999px;top:-99999px;width:1px;height:1px;overflow:hidden;';
   document.body.appendChild(tmp);
   try {
-    new QRCode(tmp, { text: text, width: size || 260, height: size || 260 });
+    new QRCode(tmp, { text: text, width: size || QR_SHARE_SIZE, height: size || QR_SHARE_SIZE });
     const img = tmp.querySelector('img');
     if (img && img.src && img.src.indexOf('data:image') === 0) return img.src;
     const canvas = tmp.querySelector('canvas');
@@ -6893,16 +6894,9 @@ function makeQrDataUrl(text, size) {
 }
 // استخراج صورة QR للحجز: من النافذة إن كانت مفتوحة، وإلا نولّدها مباشرة
 function qrImageDataUrl(booking) {
-  const c = document.getElementById('qrcode-container');
-  const modalOpen = document.getElementById('qr-modal')?.classList.contains('open');
-  if (booking && modalOpen && c) {
-    const img = c.querySelector('img');
-    if (img && img.src && img.src.indexOf('data:image') === 0) return img.src;
-    const canvas = c.querySelector('canvas');
-    if (canvas) return canvas.toDataURL('image/png');
-  }
+  // دايماً صورة مشاركة صغيرة — حتى لو نافذة التذكرة مفتوحة
   const b = booking || bookings.find(x => x.id === currentQrBookingId);
-  return b ? makeQrDataUrl(b.id, 260) : '';
+  return b ? makeQrDataUrl(b.id, QR_SHARE_SIZE) : '';
 }
 function dataUrlToFile(dataUrl, filename) {
   const parts = dataUrl.split(',');
