@@ -6910,42 +6910,41 @@ function makeQrDataUrl(text, size, opts) {
     }
     const caption = (opts && opts.caption) ? String(opts.caption) : '';
     const lines = (opts && Array.isArray(opts.lines)) ? opts.lines : [];
-    const frame = 21, pad = 8, lineH = 13;
-    const out = document.createElement('canvas');
-    out.width = s + 2 * (frame + pad);
-    out.height = frame + pad + s + (caption ? 16 : 0) + (lines.length ? 6 + lines.length * lineH : 0) + pad + frame;
-    const ctx = out.getContext('2d');
-    const round = (x, y, w, h, r) => {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.arcTo(x + w, y, x + w, y + h, r);
-      ctx.arcTo(x + w, y + h, x, y + h, r);
-      ctx.arcTo(x, y + h, x, y, r);
-      ctx.arcTo(x, y, x + w, y, r);
-      ctx.closePath();
-    };
-    round(0, 0, out.width, out.height, 20);
-    ctx.fillStyle = '#075e54'; ctx.fill();
-    round(frame, frame, out.width - 2 * frame, out.height - 2 * frame, 12);
-    ctx.fillStyle = '#fff'; ctx.fill();
+    const frame = 21, pad = 8, lineH = 14;
+    const w = s + 2 * (frame + pad);
+    const h = frame + pad + s + (caption ? 18 : 0) + (lines.length ? 6 + lines.length * lineH : 0) + 8 + pad + frame;
+    // رسم بدقة مضاعفة ثم تصغيرها: الكلام يطلع أوضح من غير ما الصورة تكبر
+    const SS = 2;
+    const hi = document.createElement('canvas');
+    hi.width = w * SS; hi.height = h * SS;
+    const ctx = hi.getContext('2d');
+    ctx.scale(SS, SS);
+    ctx.fillStyle = '#075e54'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fff'; ctx.fillRect(frame, frame, w - 2 * frame, h - 2 * frame);
     ctx.drawImage(src, frame + pad, frame + pad, s, s);
     let y = frame + pad + s;
     if (caption) {
-      y += 10;
+      y += 12;
       ctx.fillStyle = '#111';
-      ctx.font = '700 9px Arial, sans-serif';
+      ctx.font = '700 10px Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText(caption, out.width / 2, y);
-      y += 4;
+      ctx.fillText(caption, w / 2, y);
+      y += 5;
     }
     if (lines.length) {
       ctx.fillStyle = '#0b3d34';
-      ctx.font = '700 9px Arial, sans-serif';
+      ctx.font = '700 10px Arial, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
       lines.forEach(line => { y += lineH; ctx.fillText(line, frame + pad + 1, y); });
     }
+    const out = document.createElement('canvas');
+    out.width = w; out.height = h;
+    const octx = out.getContext('2d');
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = 'high';
+    octx.drawImage(hi, 0, 0, w, h);
     return out.toDataURL('image/png');
   } catch (e) {
     return '';
