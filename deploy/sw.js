@@ -1,7 +1,7 @@
 /* Gatz. Hub Service Worker — Network-first for HTML, Cache-first for assets */
 
-const STATIC_CACHE = 'gatz-hub-static-v17';
-const RUNTIME_CACHE = 'gatz-hub-runtime-v17';
+const STATIC_CACHE = 'gatz-hub-static-v18';
+const RUNTIME_CACHE = 'gatz-hub-runtime-v18';
 const PRECACHE = ['./restaurant-booking-v2', './restaurant-booking-v2.html', './html5-qrcode.min.js', './gatz-word.png', './gatz-word-text.png', './gatz-brand-icon.png', './gatz-badge.png', './manifest.json'];
 
 // مفتاح الأيقونة المثبّتة: بدون .html وبدون query — أي تحديث شبكة يكتب عليه كمان
@@ -11,6 +11,15 @@ function canonicalHtmlKey(u) {
   x.search = '';
   x.hash = '';
   return x.href;
+}
+
+// النسخة الأحدث دايماً في runtime — الـ precache القديم ما يخفيهاش
+async function htmlFromCache(key) {
+  const rt = await caches.open(RUNTIME_CACHE);
+  const fresh = await rt.match(key);
+  if (fresh) return fresh;
+  const st = await caches.open(STATIC_CACHE);
+  return st.match(key);
 }
 
 // تثبيت: تحميل الملفات الأساسية مسبقاً
@@ -92,9 +101,13 @@ self.addEventListener('fetch', (e) => {
   }
 
   // ملفات HTML → Stale-while-revalidate: عرض فوري من الكاش، وتحديث في الخلفية
-  // force-update.html (أو ?fresh=1) يفضل Network-first عشان يجيب أحدث نسخة
+  // force-update.html / ?fresh=1 / hard reload (Ctrl+F5) → Network-first عشان أحدث نسخة
   if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html') || url.pathname.endsWith('.html') || target.pathname.endsWith('.html')) {
-    const mustBeFresh = target.pathname.endsWith('force-update.html') || target.searchParams.has('fresh');
+    const cc = req.headers.get('cache-control') || '';
+    const pragma = req.headers.get('pragma') || '';
+    const hardReload = req.cache === 'reload' || /no-cache|no-store|max-age=0/.test(cc) || /no-cache/.test(pragma);
+    const mustBeFresh = target.pathname.endsWith('force-update.html') || target.searchParams.has('fresh') || hardReload;
+    const fallback = () => htmlFromCache(targetKey).then(r => r || htmlFromCache('./restaurant-booking-v2.html'));
     if (mustBeFresh) {
       e.respondWith(
         fetch(targetKey)
@@ -109,7 +122,7 @@ self.addEventListener('fetch', (e) => {
             }
             return res;
           })
-          .catch(() => caches.match(targetKey).then(r => r || caches.match('./restaurant-booking-v2.html')))
+          .catch(fallback)
       );
       return;
     }
@@ -125,9 +138,9 @@ self.addEventListener('fetch', (e) => {
         }
         return res;
       })
-      .catch(() => caches.match(targetKey).then(r => r || caches.match('./restaurant-booking-v2.html')));
+      .catch(fallback);
     e.waitUntil(network.catch(() => {}));
-    e.respondWith(caches.match(targetKey).then(cached => cached || network));
+    e.respondWith(htmlFromCache(targetKey).then(cached => cached || network));
     return;
   }
 

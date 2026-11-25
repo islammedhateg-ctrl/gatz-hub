@@ -29,7 +29,7 @@ if (location.protocol === 'http:' && !['127.0.0.1','localhost'].includes(locatio
 (function () {
   const local = ['127.0.0.1','localhost'].includes(location.hostname);
   const base = local ? '' : 'https://' + location.host + '/';
-  const target = base + 'restaurant-booking-v2.html?v=' + Date.now();
+  const target = base + 'restaurant-booking-v2.html?fresh=1&v=' + Date.now();
   const link = document.getElementById('manual-link');
   if (link) link.href = target;
 
