@@ -7882,11 +7882,17 @@ async function requestBrowserNotify() {
 }
 function bookingPushData(b) {
   const z = zones.find(x => x.id === b.zoneId) || {};
+  const lang = devicePushLang();
+  const pkg = (z.packageNames && z.packageNames[b.packageIndex]) || '';
+  // المناسبة والباقة بيخزّنوا بالعربي — الجهاز الإنجليزي يستلم الترجمة
+  const eventType = lang === 'en'
+    ? ((VALUE_LABELS[b.type] || {}).en || b.type || '')
+    : (b.type || '');
   return {
     id: b.id || '',
     name: b.name || '', date: b.date || '', time: b.start || '', endTime: b.end || '',
-    zoneAr: z.name || '', zoneEn: z.nameEn || '', eventType: b.type || '',
-    packageName: (z.packageNames && z.packageNames[b.packageIndex]) || '',
+    zoneAr: z.name || '', zoneEn: z.nameEn || '', eventType,
+    packageName: lang === 'en' ? pkg.replace(/^باقة\s*/, '') : pkg,
     guests: Number(b.guests) || 0,
     origin: location.origin
   };
