@@ -2719,8 +2719,6 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
     <div class="modal-body" style="text-align:center;">
       <p id="modal-booking-info" style="color:var(--muted); font-size:.85rem; margin-bottom:12px;"></p>
       <div id="qrcode-container" style="display:flex; justify-content:center; margin:12px 0;"></div>
-      <p style="font-size:.8rem; color:var(--muted); margin-bottom:6px;" data-i18n="qr.hint">أبرز هذا الكود لموظف البوابة</p>
-      <p id="qr-wa-hint" style="font-size:.72rem; color:var(--primary); margin-bottom:12px;"></p>
     </div>
     <div class="modal-footer" style="flex-wrap:wrap;">
       <button class="btn btn-success btn-sm" id="send-ticket-btn" onclick="sendTicket()">
@@ -7147,10 +7145,6 @@ function openQrModal(id) {
   currentQrBookingId = id;
   const zone = zones.find(z => z.id === b.zoneId) || { name: b.zoneId, nameEn: b.zoneId };
   document.getElementById('modal-booking-info').textContent = `${b.name} | ${b.id} | ${zoneName(zone)} (${b.guests})`;
-  const waHint = document.getElementById('qr-wa-hint');
-  if (waHint) waHint.textContent = currentLang === 'ar'
-    ? '📲 التذكرة ورابط الدعوة هيتبعتوا مع بعض في رسالة واحدة'
-    : '📲 Ticket and invite link are sent together in one message';
   const container = document.getElementById('qrcode-container');
   const ticketUrl = qrImageDataUrl(b);
   container.innerHTML = ticketUrl
