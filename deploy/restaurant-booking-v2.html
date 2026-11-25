@@ -2723,16 +2723,10 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
       <p id="qr-wa-hint" style="font-size:.72rem; color:var(--primary); margin-bottom:12px;"></p>
     </div>
     <div class="modal-footer" style="flex-wrap:wrap;">
-      <a id="whatsapp-share-btn" href="#" target="_blank" class="btn btn-success btn-sm">
-        <i class="fa-brands fa-whatsapp"></i> <span data-i18n="qr.whatsapp">إرسال واتساب</span>
-      </a>
-      <button class="btn btn-success btn-sm" id="share-qr-image-btn" onclick="shareQRWithImage()">
-        <i class="fa-solid fa-image"></i> <span data-i18n="qr.shareImage">مشاركة بالصورة</span>
+      <button class="btn btn-success btn-sm" id="send-ticket-btn" onclick="sendTicket()">
+        <i class="fa-brands fa-whatsapp"></i> <i class="fa-solid fa-image"></i> <span data-i18n="qr.sendTicket">إرسال التذكرة</span>
       </button>
       <button class="btn btn-outline btn-sm" onclick="downloadQR()"><i class="fa-solid fa-download"></i> <span data-i18n="qr.download">تنزيل QR</span></button>
-      <button class="btn btn-primary btn-sm" id="invite-friends-btn" onclick="openInviteModal()">
-        <i class="fa-solid fa-user-plus"></i> <span data-i18n="invite.friends">دعوة أصدقاء</span>
-      </button>
       <button class="btn btn-outline btn-sm" onclick="printQR()"><i class="fa-solid fa-print"></i> <span data-i18n="qr.print">طباعة</span></button>
       <button class="btn btn-outline btn-sm" onclick="closeModal('qr-modal')" data-i18n="action.close">إغلاق</button>
     </div>
@@ -2746,8 +2740,8 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
       <div style="width:64px;height:64px;border-radius:50%;background:var(--success-soft);color:var(--success);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 14px;"><i class="fa-solid fa-check"></i></div>
       <h3 style="font-size:1.15rem;margin-bottom:6px;" data-i18n="success.title">تم تأكيد الحجز!</h3>
       <p id="success-summary" style="font-size:.82rem; color:var(--muted); margin-bottom:20px; line-height:1.7;"></p>
-      <button class="btn btn-success btn-lg" onclick="shareQRWithImage()" style="width:100%; margin-bottom:10px; font-size:1rem;">
-        <i class="fa-brands fa-whatsapp"></i> <i class="fa-solid fa-image"></i> <span data-i18n="success.shareImage">مشاركة QR بالصورة على واتساب</span>
+      <button class="btn btn-success btn-lg" onclick="sendTicket()" style="width:100%; margin-bottom:10px; font-size:1rem;">
+        <i class="fa-brands fa-whatsapp"></i> <i class="fa-solid fa-image"></i> <span data-i18n="qr.sendTicket">إرسال التذكرة</span>
       </button>
       <div style="display:flex; gap:8px;">
         <button class="btn btn-primary" onclick="closeModal('success-modal'); openQrModal(currentQrBookingId)" style="flex:1;" data-i18n="success.openTicket">تذكرة QR</button>
@@ -3204,6 +3198,7 @@ const I18N = {
     'success.copyText': 'نسخ الرسالة',
     'door.scanFromFile': 'مسح من صورة',
     'qr.shareImage': 'مشاركة بالصورة',
+    'qr.sendTicket': 'إرسال التذكرة',
     'qr.download': 'تنزيل QR',
     'settings.inviteUrl': 'رابط التطبيق العام (دعوات واتساب)',
     'settings.inviteUrlHint': 'اتركه فارغاً لاستخدام الرابط الحالي — يُفضَّل رابط منشور ليعمل خارج جهازك',
@@ -3609,6 +3604,7 @@ const I18N = {
     'success.copyText': 'Copy message',
     'door.scanFromFile': 'Scan from image',
     'qr.shareImage': 'Share with image',
+    'qr.sendTicket': 'Send Ticket',
     'qr.download': 'Download QR',
     'settings.inviteUrl': 'Public App URL (WhatsApp invites)',
     'settings.inviteUrlHint': 'Leave empty to use the current link — a published URL is recommended so guests can open it',
@@ -7095,13 +7091,14 @@ function downloadQR(id) {
   a.href = url; a.download = 'Gatz-' + b.id + '-QR.png'; a.click();
   toast(currentLang === 'ar' ? 'تم تنزيل صورة QR' : 'QR image downloaded', 'success');
 }
-// مشاركة صورة QR + النص عبر لوحة المشاركة النظامية ( Whatsapp يظهر فيها على الموبايل )
-async function shareQRWithImage(id) {
+// زر واحد: يبعت التذكرة (صورة) + رابط الدعوة (نص) في نفس المشاركة
+async function sendTicket(id) {
   const b = bookings.find(x => x.id === (id || currentQrBookingId));
   if (!b) return;
   const url = qrImageDataUrl(b);
-  const text = buildCustomerShareText(b);
   const filename = 'Gatz-' + b.id + '-QR.png';
+  const text = buildCustomerShareText(b);
+  // الموبايل: لوحة المشاركة النظامية ترفق الصورة واللينك مع بعض (واتساب ضمن الخيارات)
   if (url && navigator.share && navigator.canShare) {
     try {
       const file = dataUrlToFile(url, filename);
@@ -7113,15 +7110,16 @@ async function shareQRWithImage(id) {
       if (e && e.name === 'AbortError') return; // المستخدم ألغى المشاركة
     }
   }
-  // بديل لسطح المكتب: نزّل الصورة + انسخ النص، ثم الصقها في واتساب يدوياً
+  // الديسكتوب: wa.me ما يرفقش صور → افتح واتساب بالنص، ونزّل الكارت عشان يُرفق يدوياً
   if (url) {
     const a = document.createElement('a');
     a.href = url; a.download = filename; a.click();
   }
-  try { await navigator.clipboard.writeText(text); } catch (e) { /* تجاهل */ }
+  const msg = buildCustomerWaMessage(b);
+  window.open('https://wa.me/' + phoneForWa(b.whatsapp) + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
   toast(currentLang === 'ar'
-    ? 'تم تنزيل صورة QR ونسخ الرسالة — افتح واتساب وأرفق الصورة'
-    : 'QR image downloaded and message copied — open WhatsApp and attach the image', 'info');
+    ? 'اتفتح واتساب — الصورة اتنزّلت، ارفقها في الرسالة'
+    : 'WhatsApp opened — image downloaded, please attach it', 'info');
 }
 
 // شاشة نجاح بعد تأكيد الدفع: زر مشاركة QR بالصورة دون فتح نافذة التذكرة
@@ -7151,16 +7149,13 @@ function openQrModal(id) {
   document.getElementById('modal-booking-info').textContent = `${b.name} | ${b.id} | ${zoneName(zone)} (${b.guests})`;
   const waHint = document.getElementById('qr-wa-hint');
   if (waHint) waHint.textContent = currentLang === 'ar'
-    ? '📲 واتساب: نص فقط · للمشاركة مع صورة QR استخدم «مشاركة بالصورة» (الموبايل)'
-    : '📲 WhatsApp: text only · To attach the QR image use “Share with image” (mobile)';
+    ? '📲 التذكرة ورابط الدعوة هيتبعتوا مع بعض في رسالة واحدة'
+    : '📲 Ticket and invite link are sent together in one message';
   const container = document.getElementById('qrcode-container');
   const ticketUrl = qrImageDataUrl(b);
   container.innerHTML = ticketUrl
     ? `<img src="${ticketUrl}" alt="Booking confirmation" style="display:block;width:100%;max-width:360px;border-radius:12px;">`
     : '';
-  // رسالة واتساب واحدة للعميل: تفاصيل الحجز + QR + رابط دعوة الأصدقاء (دائماً إنجليزي)
-  const msg = buildCustomerWaMessage(b);
-  document.getElementById('whatsapp-share-btn').href = `https://wa.me/${phoneForWa(b.whatsapp)}?text=${encodeURIComponent(msg)}`;
   document.getElementById('qr-modal').classList.add('open');
 }
 
