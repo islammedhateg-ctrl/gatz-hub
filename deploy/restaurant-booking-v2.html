@@ -7003,7 +7003,7 @@ function makeQrDataUrl(text, size, opts) {
     const W = 360, barH = 104, bodyPad = 16, cardPad = 14, rowH = 24;
     const rows = bookingTicketRows(b);
     const cardW = W - bodyPad * 2;
-    const cardH = cardPad + rows.length * rowH + (s + 46) + cardPad;
+    const cardH = cardPad + rows.length * rowH + (s + 60) + cardPad;
     const H = barH + bodyPad + cardH + bodyPad;
     const out = document.createElement('canvas');
     out.width = W * SS; out.height = H * SS;
@@ -7056,14 +7056,14 @@ function makeQrDataUrl(text, size, opts) {
     });
 
     // QR الحجز (BK-...) — زي ما هو، بدون GST:
-    ctx.fillStyle = '#075e54'; ctx.fillRect(cardX + cardPad, y + 6, cardW - 2 * cardPad, 2);
+    ctx.fillStyle = '#075e54'; ctx.fillRect(cardX + cardPad, y - 6, cardW - 2 * cardPad, 2);
     const qrX = (W - s) / 2, qrY = y + 20;
     gatzRoundRect(ctx, qrX - 8, qrY - 8, s + 16, s + 16, 8);
     ctx.fillStyle = '#fff'; ctx.fill();
     ctx.strokeStyle = '#dbe4e8'; ctx.stroke();
     ctx.drawImage(qrCanvas, qrX, qrY, s, s);
     ctx.fillStyle = '#64748b'; ctx.font = '700 11px Arial, sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('Show this code at the door', W / 2, qrY + s + 14);
+    ctx.fillText('Show this code at the door', W / 2, qrY + s + 24);
 
     return out.toDataURL('image/png');
   } catch (e) {
