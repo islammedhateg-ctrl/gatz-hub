@@ -7885,7 +7885,7 @@ async function startQrScan() {
   // محاولة الكاميرا الخلفية ثم أي كاميرا
   try {
     qrStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 960 }, height: { ideal: 540 } },
       audio: false
     });
   } catch (e) {
@@ -7952,15 +7952,19 @@ async function startQrScan() {
       }
       // طريقة 2: html5-qrcode على إطار الكاميرا (iOS/Safari وأي متصفح)
       if (!text && qrFrameScanner && video.readyState >= 2 && video.videoWidth) {
+        // تصغير الإطار + JPEG بدل PNG: أسرع بكتير على iPhone/Safari
+        const maxSide = 800;
+        const scale = Math.min(1, maxSide / Math.max(video.videoWidth, video.videoHeight));
+        const w = Math.max(1, Math.round(video.videoWidth * scale));
+        const h = Math.max(1, Math.round(video.videoHeight * scale));
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.82));
         if (blob) {
           // html5-qrcode بيطلب File مش Blob — عشان كدة بنلفّ الإطار في File
-          const file = new File([blob], 'qr-frame.png', { type: 'image/png' });
-          text = await qrFrameScanner.scanFile(file, true).catch(() => '');
+          const file = new File([blob], 'qr-frame.jpg', { type: 'image/jpeg' });
+          text = await qrFrameScanner.scanFile(file, false).catch(() => '');
         }
       }
     } catch (e) { /* فشل هذه المحاولة — نكمل */ }
@@ -7977,7 +7981,7 @@ async function startQrScan() {
       }
     }
     if (qrFrames === 8) status.textContent = currentLang === 'ar' ? 'وجّه الكاميرا نحو رمز QR...' : 'Point camera at the QR code...';
-    qrLoop = setTimeout(tick, qrDetector ? 90 : 160);
+    qrLoop = setTimeout(tick, qrDetector ? 90 : 260);
   };
   tick();
 }
