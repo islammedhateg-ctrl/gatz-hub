@@ -532,6 +532,8 @@ body.big-targets .switch::after { width: 24px; height: 24px; }
   border-radius: 999px; outline: none; cursor: pointer;
   background: linear-gradient(to right, var(--primary) var(--fill, 70%), var(--surface-3) var(--fill, 70%));
 }
+/* في RTL الـ handle بيتحرك من اليمين لليسار — اللون لازم يتبعه */
+[dir="rtl"] .sound-bar { background: linear-gradient(to left, var(--primary) var(--fill, 70%), var(--surface-3) var(--fill, 70%)); }
 .sound-bar::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none; width: 16px; height: 16px;
   border-radius: 50%; background: var(--surface); border: 3px solid var(--primary);
