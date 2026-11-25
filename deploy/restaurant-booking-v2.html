@@ -4668,6 +4668,8 @@ window.onload = () => {
         if (fresh) { currentUser = fresh; setRole(fresh.role); }
         else { currentUser = null; sessionStorage.removeItem('rest_session'); }
       }
+      // حدّث لغة الجهاز في الاشتراك المخزّن بعد ما الجلسة اتاستعادت
+      try { await syncPushLang(pushSubscription); } catch (e) {}
       applyAuthState();
       if (CLOUD.enabled && currentUser) cloudSubscribe();
       applyAuthUI();
@@ -7768,6 +7770,24 @@ async function initPushSubscription() {
     }
   } catch (e) {}
 }
+// لغة الجهاز نفسه (مش لغة الواجهة اللي المستخدم اختارها) — بتتخزّن لكل اشتراك
+function devicePushLang() {
+  const l = String(navigator.language || navigator.userLanguage || 'ar').toLowerCase();
+  return l.indexOf('ar') === 0 ? 'ar' : 'en';
+}
+
+//حدّث لغة الجهاز في قاعدة الاشتراكات بدون ما نلمّس الاشتراك
+async function syncPushLang(sub) {
+  if (!CLOUD.enabled || !CLOUD.client || !sub) return;
+  try {
+    const { error } = await CLOUD.client.from('push_subscriptions').upsert({
+      endpoint: sub.endpoint,
+      lang: devicePushLang()
+    }, { onConflict: 'endpoint' });
+    if (error) console.warn('push lang sync:', error.message);
+  } catch (e) { console.warn('push lang sync:', e); }
+}
+
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -7804,7 +7824,7 @@ async function subscribeWebPush() {
       user_id: user ? user.id : null,
       endpoint: sub.endpoint,
       subscription: sub.toJSON(),
-      lang: currentLang
+      lang: devicePushLang()
     }, { onConflict: 'endpoint' });
     if (error) throw new Error('DB: ' + error.message);
   }
@@ -7868,7 +7888,7 @@ function bookingPushData(b) {
     zoneAr: z.name || '', zoneEn: z.nameEn || '', eventType: b.type || '',
     packageName: (z.packageNames && z.packageNames[b.packageIndex]) || '',
     guests: Number(b.guests) || 0,
-    lang: currentLang, origin: location.origin
+    origin: location.origin
   };
 }
 async function sendBookingPush(type, data) {
