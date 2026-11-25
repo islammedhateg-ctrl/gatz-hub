@@ -2016,7 +2016,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 <div class="form-group">
                   <label data-i18n="field.guests">عدد الأفراد <span class="req">*</span></label>
                   <div class="has-icon"><i class="fa-solid fa-users field-icon"></i>
-                    <input class="input" type="number" id="b-guests" min="1" value="10" required onchange="checkZoneCapacity(); syncDepositField(); updateFees();" oninput="syncDepositField(); updateFees();">
+                    <input class="input" type="number" id="b-guests" min="1" value="10" required onchange="checkZoneCapacity(); syncDepositField(); updateFees();" oninput="checkZoneCapacity(); syncDepositField(); updateFees();">
                   </div>
                   <div class="helper" id="capacity-warning"></div>
                 </div>
@@ -5427,13 +5427,6 @@ async function saveZoneEdit() {
     z = { id: nextZoneId(), name: '', nameEn: '', capacity: 0, depositPercent: 10, packages: [], packageNames: [], packageActive: [], active: true };
     zones.push(z);
   } else {
-    const minCapacity = zoneMaxBooked(z);
-    if (capacity < minCapacity) {
-      toast(ar
-        ? `السعة الجديدة (${capacity}) أقل من أعلى تزامن محجوز (${minCapacity}) — أدخل ${minCapacity} أو أكتر`
-        : `New capacity (${capacity}) is below the peak concurrent guests (${minCapacity}) — enter ${minCapacity} or more`, 'error');
-      return;
-    }
     if (z.active !== false && !nowActive) {
       const used = bookings.filter(b => b.zoneId === z.id && !b.cancelled).length;
       if (used) {
@@ -5515,18 +5508,6 @@ function zoneRemaining(z, date = document.getElementById('b-date')?.value, start
     .reduce((s, b) => s + (b.guests || 0), 0);
   return z.capacity - used;
 }
-// أعلى تزامن في المنطقة — الحد الأدنى المسموح للسعة
-function zoneMaxBooked(z) {
-  const spans = zoneActiveSpans(z);
-  if (!spans.length) return 0;
-  const points = spans.reduce((arr, x) => arr.concat([x.s, x.e]), []);
-  let peak = 0;
-  points.forEach(t => {
-    const concurrent = spans.reduce((sum, x) => sum + (x.s <= t && t < x.e ? x.g : 0), 0);
-    if (concurrent > peak) peak = concurrent;
-  });
-  return peak;
-}
 function renderZoneCards() {
   const container = document.getElementById('zone-cards');
   if (!container) return;
@@ -5535,9 +5516,11 @@ function renderZoneCards() {
   const start = document.getElementById('b-start')?.value || '';
   const end = document.getElementById('b-end')?.value || autoEndForDate() || '00:00';
   container.innerHTML = zones.filter(z => z.active).map(z => {
-    const remaining = zoneRemaining(z, date, start, end);
-    const used = z.capacity - remaining;
-    const over = guests > remaining;
+    const rawRemaining = zoneRemaining(z, date, start, end);
+    const remaining = Math.max(0, rawRemaining);
+    const used = Math.max(0, z.capacity - rawRemaining);
+    const over = guests > rawRemaining;
+    const fillPct = z.capacity > 0 ? Math.min(100, (used / z.capacity) * 100) : (used > 0 ? 100 : 0);
     const selected = selectedZoneId === z.id;
     return `
       <div class="zone-card ${selected ? 'selected' : ''} ${over ? 'disabled' : ''}" onclick="${over ? '' : `selectZone('${z.id}')`}">
@@ -5546,7 +5529,7 @@ function renderZoneCards() {
           <span>${t('field.guests')}: ${used}/${z.capacity}</span>
           <span style="color:${over ? 'var(--danger)' : 'var(--success)'};">${over ? t('status.full') : t('status.available') + ' ' + remaining}</span>
         </div>
-        <div class="cap-bar"><div class="fill" style="width:${Math.min(100, (used/z.capacity)*100)}%; background:${over ? 'var(--danger)' : 'var(--success)'};"></div></div>
+        <div class="cap-bar"><div class="fill" style="width:${fillPct}%; background:${over ? 'var(--danger)' : 'var(--success)'};"></div></div>
       </div>
     `;
   }).join('');
@@ -5562,6 +5545,7 @@ function selectZone(id) {
   // re-render to reflect
   renderZoneCards();
   renderPackageOptions();
+  checkZoneCapacity();
 }
 
 // قائمة الباقات المشتركة — واحدة لكل المناطق الأربع
@@ -6053,9 +6037,12 @@ function checkZoneCapacity() {
   const date = document.getElementById('b-date').value;
   const start = document.getElementById('b-start')?.value || '';
   const end = document.getElementById('b-end')?.value || autoEndForDate() || '00:00';
-  const remaining = zoneRemaining(z, date, start, end);
-  if (z && guests > remaining) {
-    warn.textContent = `⚠ ${guests} > ${currentLang === 'ar' ? 'المتبقي' : 'available'} ${remaining}`;
+  const rawRemaining = zoneRemaining(z, date, start, end);
+  const remaining = Math.max(0, rawRemaining);
+  if (z && guests > rawRemaining) {
+    warn.textContent = currentLang === 'ar'
+      ? `⚠ المطلوب ${guests} > المتاح ${remaining}`
+      : `⚠ Requested ${guests} > available ${remaining}`;
     warn.classList.add('error');
   } else {
     warn.textContent = '';
