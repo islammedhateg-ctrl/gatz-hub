@@ -6913,11 +6913,11 @@ function makeQrDataUrl(text, size, opts) {
     const frame = 21, pad = 8, lineH = 14;
     const w = s + 2 * (frame + pad);
     const h = frame + pad + s + (caption ? 18 : 0) + (lines.length ? 6 + lines.length * lineH : 0) + 8 + pad + frame;
-    // رسم بدقة مضاعفة ثم تصغيرها: الكلام يطلع أوضح من غير ما الصورة تكبر
+    // دقة مضاعفة فعلية: واتساب ينزّل الصورة عند العرض فيطلع الكلام حاد مش مبكسل
     const SS = 2;
-    const hi = document.createElement('canvas');
-    hi.width = w * SS; hi.height = h * SS;
-    const ctx = hi.getContext('2d');
+    const out = document.createElement('canvas');
+    out.width = w * SS; out.height = h * SS;
+    const ctx = out.getContext('2d');
     ctx.scale(SS, SS);
     ctx.fillStyle = '#075e54'; ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = '#fff'; ctx.fillRect(frame, frame, w - 2 * frame, h - 2 * frame);
@@ -6939,12 +6939,6 @@ function makeQrDataUrl(text, size, opts) {
       ctx.textBaseline = 'alphabetic';
       lines.forEach(line => { y += lineH; ctx.fillText(line, frame + pad + 1, y); });
     }
-    const out = document.createElement('canvas');
-    out.width = w; out.height = h;
-    const octx = out.getContext('2d');
-    octx.imageSmoothingEnabled = true;
-    octx.imageSmoothingQuality = 'high';
-    octx.drawImage(hi, 0, 0, w, h);
     return out.toDataURL('image/png');
   } catch (e) {
     return '';
