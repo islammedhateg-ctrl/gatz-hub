@@ -1,7 +1,7 @@
 /* Gatz. Hub Service Worker — Network-first for HTML, Cache-first for assets */
 
-const STATIC_CACHE = 'gatz-hub-static-v16';
-const RUNTIME_CACHE = 'gatz-hub-runtime-v16';
+const STATIC_CACHE = 'gatz-hub-static-v17';
+const RUNTIME_CACHE = 'gatz-hub-runtime-v17';
 const PRECACHE = ['./restaurant-booking-v2', './restaurant-booking-v2.html', './html5-qrcode.min.js', './gatz-word.png', './gatz-word-text.png', './gatz-brand-icon.png', './gatz-badge.png', './manifest.json'];
 
 // مفتاح الأيقونة المثبّتة: بدون .html وبدون query — أي تحديث شبكة يكتب عليه كمان
