@@ -2590,15 +2590,9 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
     <div class="modal-body">
       <input type="hidden" id="ze-id">
       <div class="form-group" style="margin-bottom:12px;">
-        <label>الاسم (عربي)</label>
+        <label data-i18n="zones.nameAr">اسم المنطقة</label>
         <div class="has-icon"><i class="fa-solid fa-map-location-dot field-icon"></i>
           <input class="input" type="text" id="ze-name">
-        </div>
-      </div>
-      <div class="form-group" style="margin-bottom:12px;">
-        <label>Name (English)</label>
-        <div class="has-icon"><i class="fa-solid fa-language field-icon"></i>
-          <input class="input" type="text" id="ze-name-en" dir="ltr">
         </div>
       </div>
       <div class="row2" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
@@ -2612,12 +2606,12 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
         </div>
       </div>
       <div style="margin-bottom:12px;">
-        <label style="display:block; font-weight:700; font-size:.8rem; margin-bottom:8px;" data-i18n="zones.packages">الباقات (قائمة مشتركة لكل المناطق — الاسم + السعر للفرد)</label>
+        <label style="display:block; font-weight:700; font-size:.8rem; margin-bottom:8px;" data-i18n="zones.packages">الباقات</label>
         <div id="ze-packages" style="display:flex; flex-direction:column; gap:6px;"></div>
         <button type="button" class="btn btn-outline" style="width:100%; margin-top:8px; border-style:dashed;" onclick="zeAddPackage()"><i class="fa-solid fa-plus"></i> <span data-i18n="pkg.add">إضافة باكدج جديدة</span></button>
       </div>
       <div class="sound-row" style="margin-bottom:0;">
-        <div class="sound-info"><b data-i18n="zones.active">المنطقة مفعّلة</b><span data-i18n="zones.activeHint">تظهر في الحجوزات</span></div>
+        <div class="sound-info"><b data-i18n="zones.activeToggle">مفعّل</b></div>
         <button class="switch on" id="ze-active" onclick="this.classList.toggle('on')" aria-label="Zone active"></button>
       </div>
     </div>
@@ -3103,14 +3097,15 @@ const I18N = {
     'zones.add': 'إضافة منطقة',
     'zones.viewDate': 'تاريخ العرض',
     'zones.activeCapacity': 'سعة المناطق المفعّلة',
-    'zones.nameAr': 'الاسم (عربي)',
+    'zones.nameAr': 'اسم المنطقة',
     'zones.nameEn': 'الاسم (إنجليزي)',
-    'zones.capacity': 'السعة (أفراد)',
-    'zones.packages': 'الباقات (قائمة مشتركة لكل المناطق — الاسم + السعر للفرد)',
+    'zones.capacity': 'السعة',
+    'zones.packages': 'الباقات',
     'pkg.1': 'باقة 1', 'pkg.2': 'باقة 2', 'pkg.3': 'باقة 3', 'pkg.4': 'باقة 4',
     'pkg.add': 'إضافة باكدج جديدة', 'pkg.none': 'لا توجد باقات متاحة',
-    'zones.depositPercent': 'نسبة الديبوزيت (%)',
+    'zones.depositPercent': 'الديبوزيت (%)',
     'zones.active': 'المنطقة مفعّلة',
+    'zones.activeToggle': 'مفعّل',
     'zones.activeHint': 'تظهر في الحجوزات',
     'door.title': 'بوابة الدخول (QR Scan)',
     'door.subtitle': 'تسجيل دخول الضيوف وحساب الأعداد',
@@ -3507,14 +3502,15 @@ const I18N = {
     'zones.add': 'Add zone',
     'zones.viewDate': 'View date',
     'zones.activeCapacity': 'Active capacity',
-    'zones.nameAr': 'Name (Arabic)',
+    'zones.nameAr': 'Zone Name',
     'zones.nameEn': 'Name (English)',
-    'zones.capacity': 'Capacity (guests)',
-    'zones.packages': 'Packages (shared list for all zones — name + price per person)',
+    'zones.capacity': 'Capacity',
+    'zones.packages': 'Packages',
     'pkg.1': 'Package 1', 'pkg.2': 'Package 2', 'pkg.3': 'Package 3', 'pkg.4': 'Package 4',
     'pkg.add': 'Add new package', 'pkg.none': 'No packages available',
-    'zones.depositPercent': 'Deposit percentage (%)',
+    'zones.depositPercent': 'Deposit (%)',
     'zones.active': 'Zone active',
+    'zones.activeToggle': 'Active',
     'zones.activeHint': 'Shown in bookings',
     'door.title': 'Door Entry (QR Scan)',
     'door.subtitle': 'Check-in guests and count attendance',
@@ -5065,7 +5061,7 @@ function buildBookingsTable(list, compact = false) {
         </td>
         <td>
           <div style="font-weight:700; color:var(--brand);">${formatMoney(b.totalFees || 0)} ${cur()}</div>
-          <small style="color:var(--muted);">${typeof b.packageIndex === 'number' ? escapeHtml((zone.packageNames && zone.packageNames[b.packageIndex]) || ('باقة ' + (b.packageIndex + 1))) : '—'}</small>
+          <small style="color:var(--muted);">${typeof b.packageIndex === 'number' ? escapeHtml(pkgDisplayName((zone.packageNames && zone.packageNames[b.packageIndex]) || 'باقة ' + (b.packageIndex + 1), b.packageIndex)) : '—'}</small>
         </td>
         <td>
           <div style="display:flex; gap:4px;">
@@ -5303,26 +5299,35 @@ let zePkgs = [], zeEditing = null, zeDraft = null, zeDragFrom = null;
 function zeRenderPackages() {
   const host = document.getElementById('ze-packages');
   if (!host) return;
-  host.innerHTML = zePkgs.map((p, i) => {
-    if (zeEditing === i) return `<div style="display:grid;grid-template-columns:1fr 90px 32px 32px;gap:6px;align-items:center;">
-      <input class="input" value="${escapeHtml(p.n)}" oninput="zeDraft.n=this.value">
+  const colHead = `<div style="display:grid;grid-template-columns:1fr 84px 76px;gap:6px;padding:0 2px 4px;">
+    <span style="font-size:.68rem;font-weight:700;color:var(--muted);">${currentLang === 'ar' ? 'الباقة' : 'Package'}</span>
+    <span style="font-size:.68rem;font-weight:700;color:var(--muted);text-align:center;">${currentLang === 'ar' ? 'الرسوم' : 'Fees'}</span>
+    <span></span>
+  </div>`;
+  host.innerHTML = colHead + zePkgs.map((p, i) => {
+    if (zeEditing === i) return `<div style="display:grid;grid-template-columns:1fr 84px 76px;gap:6px;align-items:end;">
+      <input class="input" value="${escapeHtml(pkgDisplayName(p.n, i))}" oninput="zeDraft.n=this.value">
       <input class="input" type="number" min="0" value="${p.p}" oninput="zeDraft.p=+this.value">
-      <button type="button" class="btn btn-ghost btn-sm" style="padding:0;" onclick="zeSaveEdit(${i})" title="Save">💾</button>
-      <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:var(--danger);" onclick="zeCancelEdit()" title="Cancel">✕</button>
+      <div style="display:flex;gap:2px;justify-content:flex-end;">
+        <button type="button" class="btn btn-ghost btn-sm" style="padding:0;" onclick="zeSaveEdit(${i})" title="Save">💾</button>
+        <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:var(--danger);" onclick="zeCancelEdit()" title="Cancel">✕</button>
+      </div>
     </div>`;
-    return `<div style="display:grid;grid-template-columns:1fr 70px 24px 24px 24px;gap:6px;align-items:center;${p.on ? '' : 'opacity:.5;'}">
-      <span style="font-size:.78rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${p.on ? '' : 'text-decoration:line-through;'}">${escapeHtml(p.n)}</span>
-      <span style="font-size:.72rem;color:var(--muted);text-align:center;">${p.p} ${cur()}</span>
-      <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:${p.on ? 'var(--success)' : 'var(--danger)'};" title="${p.on ? 'Disable' : 'Enable'}" onclick="zePkgs[${i}].on=!zePkgs[${i}].on; zeRenderPackages();">${p.on ? '✓' : '✕'}</button>
-      <button type="button" class="btn btn-ghost btn-sm" style="padding:0;" title="Edit" onclick="zeStartEdit(${i})">✎</button>
-      <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:var(--danger);" title="Delete" onclick="zePkgs.splice(${i},1); zeRenderPackages();">🗑</button>
+    return `<div style="display:grid;grid-template-columns:1fr 84px 76px;gap:6px;align-items:center;${p.on ? '' : 'opacity:.5;'}">
+      <span style="font-size:.78rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;${p.on ? '' : 'text-decoration:line-through;'}">${escapeHtml(pkgDisplayName(p.n, i))}</span>
+      <span style="font-size:.72rem;color:var(--muted);text-align:center;">${formatMoney(p.p)} ${cur()}</span>
+      <div style="display:flex;gap:2px;justify-content:flex-end;">
+        <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:${p.on ? 'var(--success)' : 'var(--danger)'};" title="${p.on ? 'Disable' : 'Enable'}" onclick="zePkgs[${i}].on=!zePkgs[${i}].on; zeRenderPackages();">${p.on ? '✓' : '✕'}</button>
+        <button type="button" class="btn btn-ghost btn-sm" style="padding:0;" title="Edit" onclick="zeStartEdit(${i})">✎</button>
+        <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:var(--danger);" title="Delete" onclick="zePkgs.splice(${i},1); zeRenderPackages();">🗑</button>
+      </div>
     </div>`;
   }).join('');
 }
-function zeStartEdit(i) { zeEditing = i; zeDraft = { n: zePkgs[i].n, p: zePkgs[i].p }; zeRenderPackages(); }
+function zeStartEdit(i) { zeEditing = i; zeDraft = { n: pkgDisplayName(zePkgs[i].n, i), p: zePkgs[i].p }; zeRenderPackages(); }
 function zeCancelEdit() { zeEditing = null; zeDraft = null; zeRenderPackages(); }
 function zeSaveEdit(i) {
-  zePkgs[i].n = (zeDraft.n || '').trim() || zePkgs[i].n;
+  zePkgs[i].n = pkgCanonicalName(zeDraft.n, i);
   zePkgs[i].p = Math.max(0, Number(zeDraft.p) || 0);
   zeEditing = null; zeDraft = null; zeRenderPackages();
 }
@@ -5355,7 +5360,6 @@ function openZoneNew() {
   if (currentRole !== 'admin') { toast(currentLang === 'ar' ? 'صلاحية الأدمين فقط' : 'Admin only', 'error'); return; }
   document.getElementById('ze-id').value = '__new__';
   document.getElementById('ze-name').value = '';
-  document.getElementById('ze-name-en').value = '';
   document.getElementById('ze-capacity').value = 20;
   document.getElementById('ze-deposit').value = 10;
   zeEditing = null; zeDraft = null; zeDragFrom = null;
@@ -5395,7 +5399,6 @@ function openZoneEdit(id) {
   if (!z) return;
   document.getElementById('ze-id').value = z.id;
   document.getElementById('ze-name').value = z.name || '';
-  document.getElementById('ze-name-en').value = z.nameEn || '';
   document.getElementById('ze-capacity').value = z.capacity;
   document.getElementById('ze-deposit').value = depositPercent(z);
   zeEditing = null; zeDraft = null; zeDragFrom = null;
@@ -5418,7 +5421,6 @@ async function saveZoneEdit() {
   if (!zePkgs.length) { toast(ar ? 'أضف باكة واحدة على الأقل' : 'Add at least one package', 'error'); return; }
   if (!zePkgs.some(p => p.on !== false)) { toast(ar ? 'لازم باكة واحدة مفعّلة على الأقل' : 'At least one package must be enabled', 'error'); return; }
   const name = (document.getElementById('ze-name').value || '').trim();
-  const nameEn = (document.getElementById('ze-name-en').value || '').trim();
   if (isNew && !name) { toast(ar ? 'اكتب اسم المنطقة' : 'Enter the zone name', 'error'); return; }
   const nowActive = document.getElementById('ze-active').classList.contains('on');
   if (!z) {
@@ -5443,7 +5445,7 @@ async function saveZoneEdit() {
     }
   }
   z.name = name || z.name;
-  z.nameEn = nameEn || z.name;
+  // الاسم الإنجليزي القديم (لو موجود) يفضل محفوظ زي ما هو — الحقل اتمسح من المودال
   z.capacity = capacity;
   z.depositPercent = pct;
   z.active = nowActive;
@@ -5565,13 +5567,29 @@ function selectZone(id) {
 // قائمة الباقات المشتركة — واحدة لكل المناطق الأربع
 const PKG_KEY = 'rest_packages_v1';
 let sharedPackages = null;
+// أسماء الباقات بتتخزن دايماً بالعربي، وتعرض باللغة الحالية
+function pkgNumber(s) {
+  return Number(String(s).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+}
+function pkgCanonicalName(n, i) {
+  const s = String(n || '').trim();
+  const m = s.match(/^(?:باقة|Package)\s*([0-9٠-٩]+)$/);
+  if (m) return 'باقة ' + (pkgNumber(m[1]) || (i + 1));
+  return s || 'باقة ' + (i + 1);
+}
+function pkgDisplayName(n, i) {
+  const s = String(n || '').trim();
+  const m = s.match(/^(?:باقة|Package)\s*([0-9٠-٩]+)$/);
+  if (m) return (currentLang === 'ar' ? 'باقة ' : 'Package ') + (pkgNumber(m[1]) || (i + 1));
+  return s || (currentLang === 'ar' ? 'باقة ' : 'Package ') + (i + 1);
+}
 function defaultPackages() {
-  return [50,80,120,100].map((p, i) => ({ n: t('pkg.' + (i + 1)), p, on: true }));
+  return [50,80,120,100].map((p, i) => ({ n: 'باقة ' + (i + 1), p, on: true }));
 }
 function packagesFromZone(z) {
   if (!z || !Array.isArray(z.packages) || !z.packages.length) return null;
   return z.packages.map((p, i) => ({
-    n: (z.packageNames && z.packageNames[i]) || t('pkg.' + (i + 1)),
+    n: pkgCanonicalName((z.packageNames && z.packageNames[i]) || 'باقة ' + (i + 1), i),
     p: Number(p) || 0,
     on: z.packageActive ? z.packageActive[i] !== false : true
   }));
@@ -5581,7 +5599,7 @@ function packagesCatalog() {
   try {
     const saved = JSON.parse(localStorage.getItem(PKG_KEY) || 'null');
     if (Array.isArray(saved) && saved.length) {
-      sharedPackages = saved.map(x => ({ n: String(x.n || ''), p: Number(x.p) || 0, on: x.on !== false }));
+      sharedPackages = saved.map((x, i) => ({ n: pkgCanonicalName(x.n, i), p: Number(x.p) || 0, on: x.on !== false }));
       return sharedPackages;
     }
   } catch (e) {}
@@ -5616,11 +5634,11 @@ function renderPackageOptions(keepIndex) {
   if (!sel) return;
   const pkgs = packagesCatalog();
   const prices = pkgs.map(p => Math.max(0, Number(p.p) || 0));
-  const names = pkgs.map(p => p.n || '');
+  const names = pkgs.map((p, i) => pkgDisplayName(p.n, i));
   const active = pkgs.map(p => p.on !== false);
   const available = prices.map((_, i) => i).filter(i => active[i] !== false);
   const wanted = keepIndex != null ? keepIndex : (Number(sel.value) || 0);
-  sel.innerHTML = available.map(i => `<option value="${i}">${escapeHtml(names[i] || t('pkg.' + (i + 1)))} — ${Number(prices[i]).toLocaleString()} ${cur()}</option>`).join('')
+  sel.innerHTML = available.map(i => `<option value="${i}">${escapeHtml(names[i])} — ${formatMoney(prices[i])} ${cur()}</option>`).join('')
     || `<option value="" disabled>${t('pkg.none') || 'No packages available'}</option>`;
   sel.value = String(available.includes(wanted) ? wanted : (available[0] != null ? available[0] : ''));
   syncDepositField();
@@ -5654,7 +5672,7 @@ function updateFees() {
   const fees = guests * per;
   const pct = depositPercent(zones.find(x => x.id === selectedZoneId));
   const auto = autoDeposit();
-  el.innerHTML = `${guests} × ${per.toLocaleString()} ${cur()} = <b style="color:var(--brand)">${fees.toLocaleString()} ${cur()}</b> &nbsp;·&nbsp; ${t('field.totalDue') || 'Total'}: <b>${(fees + dep).toLocaleString()} ${cur()}</b>`;
+  el.innerHTML = `${formatMoney(guests)} × ${formatMoney(per)} ${cur()} = <b style="color:var(--brand)">${formatMoney(fees)} ${cur()}</b> &nbsp;·&nbsp; ${t('field.totalDue') || 'Total'}: <b>${formatMoney(fees + dep)} ${cur()}</b>`;
   const hint = document.getElementById('deposit-hint');
   if (hint) {
     const manual = depositEditable() && depositManual && Math.abs(dep - auto) > 0.0001;
