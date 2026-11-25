@@ -2035,7 +2035,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
             <!-- Step 3: Payment -->
             <div class="step-panel" data-step="3" style="display:none;">
               <div class="form-group full" style="margin-bottom:16px;">
-                <label data-i18n="field.deposit">الديبوزيت 10% من الإجمالي (ج.م) <span class="req">*</span></label>
+                <label data-i18n="field.deposit">قيمة الديبوزيت (ج.م) <span class="req">*</span></label>
                 <div class="has-icon"><i class="fa-solid fa-sack-dollar field-icon"></i>
                   <input class="input" type="number" id="b-deposit" min="0" value="0" required oninput="markDepositManual(); updateFees();">
                 </div>
@@ -2172,7 +2172,6 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           <p data-i18n="zones.subtitle">حالة وسعة كل منطقة</p>
           <div class="actions">
             <input class="input" type="date" id="zones-date" onchange="renderZones(); renderZonesBars();" aria-label="تاريخ العرض" title="تاريخ العرض">
-            <button class="btn btn-primary btn-sm" id="zone-add-btn" onclick="openZoneNew()" style="display:none;"><i class="fa-solid fa-plus"></i> <span data-i18n="zones.add">إضافة منطقة</span></button>
           </div>
         </div>
         <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
@@ -2591,13 +2590,13 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
     <div class="modal-body">
       <input type="hidden" id="ze-id">
       <div class="form-group" style="margin-bottom:12px;">
-        <label data-i18n="zones.nameAr">الاسم (عربي)</label>
+        <label>الاسم (عربي)</label>
         <div class="has-icon"><i class="fa-solid fa-map-location-dot field-icon"></i>
           <input class="input" type="text" id="ze-name">
         </div>
       </div>
       <div class="form-group" style="margin-bottom:12px;">
-        <label data-i18n="zones.nameEn">الاسم (إنجليزي)</label>
+        <label>Name (English)</label>
         <div class="has-icon"><i class="fa-solid fa-language field-icon"></i>
           <input class="input" type="text" id="ze-name-en" dir="ltr">
         </div>
@@ -2608,8 +2607,8 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           <input class="input" type="number" id="ze-capacity" min="1">
         </div>
         <div class="form-group">
-          <label data-i18n="zones.minDeposit">الحد الأدنى للديبوزيت</label>
-          <input class="input" type="number" id="ze-deposit" min="0">
+          <label data-i18n="zones.depositPercent">نسبة الديبوزيت (%)</label>
+          <input class="input" type="number" id="ze-deposit" min="0" max="100" step="0.5">
         </div>
       </div>
       <div style="margin-bottom:12px;">
@@ -3078,7 +3077,7 @@ const I18N = {
     'field.start': 'وقت الوصول',
     'field.end': 'وقت المغادرة',
     'field.zone': 'اختيار المنطقة',
-    'field.deposit': 'الديبوزيت 10% من الإجمالي (ج.م)',
+    'field.deposit': 'قيمة الديبوزيت (ج.م)',
     'field.payment': 'طريقة الدفع',
     'type.birthday': 'عيد ميلاد',
     'type.outing': 'أوتنج',
@@ -3110,7 +3109,7 @@ const I18N = {
     'zones.packages': 'الباقات (قائمة مشتركة لكل المناطق — الاسم + السعر للفرد)',
     'pkg.1': 'باقة 1', 'pkg.2': 'باقة 2', 'pkg.3': 'باقة 3', 'pkg.4': 'باقة 4',
     'pkg.add': 'إضافة باكدج جديدة', 'pkg.none': 'لا توجد باقات متاحة',
-    'zones.minDeposit': 'الحد الأدنى للديبوزيت',
+    'zones.depositPercent': 'نسبة الديبوزيت (%)',
     'zones.active': 'المنطقة مفعّلة',
     'zones.activeHint': 'تظهر في الحجوزات',
     'door.title': 'بوابة الدخول (QR Scan)',
@@ -3482,7 +3481,7 @@ const I18N = {
     'field.start': 'Arrival Time',
     'field.end': 'Departure Time',
     'field.zone': 'Select Zone',
-    'field.deposit': 'Deposit (10% of total, EGP)',
+    'field.deposit': 'Deposit Amount (EGP)',
     'field.payment': 'Payment Method',
     'type.birthday': 'Birthday',
     'type.outing': 'Outing',
@@ -3514,7 +3513,7 @@ const I18N = {
     'zones.packages': 'Packages (shared list for all zones — name + price per person)',
     'pkg.1': 'Package 1', 'pkg.2': 'Package 2', 'pkg.3': 'Package 3', 'pkg.4': 'Package 4',
     'pkg.add': 'Add new package', 'pkg.none': 'No packages available',
-    'zones.minDeposit': 'Minimum deposit',
+    'zones.depositPercent': 'Deposit percentage (%)',
     'zones.active': 'Zone active',
     'zones.activeHint': 'Shown in bookings',
     'door.title': 'Door Entry (QR Scan)',
@@ -3958,10 +3957,10 @@ function toggleTheme() {
    DATA
    ============================================================ */
 const defaultZones = [
-  { id: 'Z1', name: 'Zone 1 - الصالة الرئيسية VIP', nameEn: 'Zone 1 - Main Hall VIP', capacity: 40, minDeposit: 1000, packages: [50,80,120,100], packageNames: ['باقة 1','باقة 2','باقة 3','باقة 4'], packageActive: [true,true,true,true], active: true },
-  { id: 'Z2', name: 'Zone 2 - التراس المفتوح (Garden)', nameEn: 'Zone 2 - Open Terrace (Garden)', capacity: 30, minDeposit: 750, packages: [50,80,120,100], packageNames: ['باقة 1','باقة 2','باقة 3','باقة 4'], packageActive: [true,true,true,true], active: true },
-  { id: 'Z3', name: 'Zone 3 - قاعة الاجتماعات', nameEn: 'Zone 3 - Meeting Hall', capacity: 25, minDeposit: 800, packages: [50,80,120,100], packageNames: ['باقة 1','باقة 2','باقة 3','باقة 4'], packageActive: [true,true,true,true], active: true },
-  { id: 'Z4', name: 'Zone 4 - ركن العائلات', nameEn: 'Zone 4 - Family Corner', capacity: 20, minDeposit: 500, packages: [50,80,120,100], packageNames: ['باقة 1','باقة 2','باقة 3','باقة 4'], packageActive: [true,true,true,true], active: true }
+  { id: 'Z1', name: 'Zone 1 - الصالة الرئيسية VIP', nameEn: 'Zone 1 - Main Hall VIP', capacity: 40, depositPercent: 10, packages: [50,80,120,100], packageNames: ['باقة 1','باقة 2','باقة 3','باقة 4'], packageActive: [true,true,true,true], active: true },
+  { id: 'Z2', name: 'Zone 2 - التراس المفتوح (Garden)', nameEn: 'Zone 2 - Open Terrace (Garden)', capacity: 30, depositPercent: 10, packages: [50,80,120,100], packageNames: ['باقة 1','باقة 2','باقة 3','باقة 4'], packageActive: [true,true,true,true], active: true },
+  { id: 'Z3', name: 'Zone 3 - قاعة الاجتماعات', nameEn: 'Zone 3 - Meeting Hall', capacity: 25, depositPercent: 10, packages: [50,80,120,100], packageNames: ['باقة 1','باقة 2','باقة 3','باقة 4'], packageActive: [true,true,true,true], active: true },
+  { id: 'Z4', name: 'Zone 4 - ركن العائلات', nameEn: 'Zone 4 - Family Corner', capacity: 20, depositPercent: 10, packages: [50,80,120,100], packageNames: ['باقة 1','باقة 2','باقة 3','باقة 4'], packageActive: [true,true,true,true], active: true }
 ];
 
 let zones = JSON.parse(localStorage.getItem('rest_zones_v2')) || JSON.parse(localStorage.getItem('rest_zones')) || defaultZones;
@@ -4131,6 +4130,10 @@ let doorBeepVolume = Number(localStorage.getItem('rest_door_beep_volume') || 70)
 
 const zoneName = (z) => currentLang === 'en' ? (z.nameEn || z.name) : z.name;
 const zoneNameEn = (z) => z.nameEn || z.name; // دائماً إنجليزي (لرسائل الواتساب)
+function depositPercent(z) {
+  const v = Number(z && z.depositPercent);
+  return Number.isFinite(v) && v >= 0 && v <= 100 ? v : 10;
+}
 
 function saveData() {
   localStorage.setItem('rest_zones_v2', JSON.stringify(zones));
@@ -5234,8 +5237,6 @@ function renderZones() {
   const grid = document.getElementById('zones-grid');
   if (!grid) return;
   const viewDate = zonesViewDate();
-  const addBtn = document.getElementById('zone-add-btn');
-  if (addBtn) addBtn.style.display = currentRole === 'admin' ? '' : 'none';
 
   // إحصائيات + أشرطة الإشغال
   const total = zones.length;
@@ -5275,7 +5276,7 @@ function renderZones() {
         <div class="card-header">
           <div class="card-title"><i class="fa-solid fa-map-location-dot"></i> ${escapeHtml(zoneName(z))}</div>
           <div style="display:flex; align-items:center; gap:6px;">
-            ${currentRole === 'admin' ? `<button class="btn btn-ghost btn-sm zone-edit-btn" onclick="openZoneEdit('${jsSafe(z.id)}')" title="${t('zones.edit')}"><i class="fa-solid fa-pen-to-square"></i></button><button class="btn btn-ghost btn-sm" onclick="deleteZone('${jsSafe(z.id)}')" title="${currentLang === 'ar' ? 'حذف المنطقة' : 'Delete zone'}"><i class="fa-solid fa-trash" style="color:var(--danger);"></i></button>` : ''}
+            ${currentRole === 'admin' ? `<button class="btn btn-ghost btn-sm zone-edit-btn" onclick="openZoneEdit('${jsSafe(z.id)}')" title="${t('zones.edit')}"><i class="fa-solid fa-pen-to-square"></i></button>` : ''}
             <span class="badge ${z.active ? 'badge-success' : 'badge-pending'}" data-i18n="${z.active ? 'status.available' : 'status.closed'}">${z.active ? 'متاح' : 'مغلق'}</span>
           </div>
         </div>
@@ -5283,7 +5284,7 @@ function renderZones() {
           <div><div style="font-size:.75rem; color:var(--muted);">السعة</div><div style="font-weight:800; font-size:1.2rem;">${z.capacity}</div></div>
           <div><div style="font-size:.75rem; color:var(--muted);">الحجوزات</div><div style="font-weight:800; font-size:1.2rem;">${zb.length}</div></div>
           <div><div style="font-size:.75rem; color:var(--muted);">الضيوف</div><div style="font-weight:800; font-size:1.2rem;">${guests}</div></div>
-          <div><div style="font-size:.75rem; color:var(--muted);">الحد الأدنى للديبوزيت</div><div style="font-weight:800; font-size:1.2rem;">${formatMoney(z.minDeposit)}</div></div>
+          <div><div style="font-size:.75rem; color:var(--muted);">${currentLang === 'ar' ? 'نسبة الديبوزيت' : 'Deposit %'}</div><div style="font-weight:800; font-size:1.2rem;" class="num">${depositPercent(z)}%</div></div>
         </div>
         <div class="zone-bar">
           <div class="track"><div class="fill ${cls}" style="width:${pct}%"></div></div>
@@ -5309,18 +5310,9 @@ function zeRenderPackages() {
       <button type="button" class="btn btn-ghost btn-sm" style="padding:0;" onclick="zeSaveEdit(${i})" title="Save">💾</button>
       <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:var(--danger);" onclick="zeCancelEdit()" title="Cancel">✕</button>
     </div>`;
-    return `<div draggable="true" data-i="${i}"
-      ondragstart="zeDragStart(event,${i})"
-      ondragover="event.preventDefault(); this.style.outline='2px dashed var(--primary)'"
-      ondragleave="this.style.outline=''"
-      ondrop="zeDrop(event,${i})"
-      ondragend="this.style.outline=''"
-      style="display:grid;grid-template-columns:1fr 70px 20px 20px 20px 24px 24px 24px;gap:5px;align-items:center;${p.on ? '' : 'opacity:.5;'}">
+    return `<div style="display:grid;grid-template-columns:1fr 70px 24px 24px 24px;gap:6px;align-items:center;${p.on ? '' : 'opacity:.5;'}">
       <span style="font-size:.78rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${p.on ? '' : 'text-decoration:line-through;'}">${escapeHtml(p.n)}</span>
       <span style="font-size:.72rem;color:var(--muted);text-align:center;">${p.p} ${cur()}</span>
-      <button type="button" class="btn btn-ghost btn-sm" style="padding:0;cursor:grab;" title="Hold / reorder">⠿</button>
-      <button type="button" class="btn btn-ghost btn-sm" style="padding:0;" title="Up" onclick="zeMove(${i},-1)">↑</button>
-      <button type="button" class="btn btn-ghost btn-sm" style="padding:0;" title="Down" onclick="zeMove(${i},1)">↓</button>
       <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:${p.on ? 'var(--success)' : 'var(--danger)'};" title="${p.on ? 'Disable' : 'Enable'}" onclick="zePkgs[${i}].on=!zePkgs[${i}].on; zeRenderPackages();">${p.on ? '✓' : '✕'}</button>
       <button type="button" class="btn btn-ghost btn-sm" style="padding:0;" title="Edit" onclick="zeStartEdit(${i})">✎</button>
       <button type="button" class="btn btn-ghost btn-sm" style="padding:0;color:var(--danger);" title="Delete" onclick="zePkgs.splice(${i},1); zeRenderPackages();">🗑</button>
@@ -5365,7 +5357,7 @@ function openZoneNew() {
   document.getElementById('ze-name').value = '';
   document.getElementById('ze-name-en').value = '';
   document.getElementById('ze-capacity').value = 20;
-  document.getElementById('ze-deposit').value = 0;
+  document.getElementById('ze-deposit').value = 10;
   zeEditing = null; zeDraft = null; zeDragFrom = null;
   zePkgs = packagesCatalog().map(p => ({ n: String(p.n || ''), p: Number(p.p) || 0, on: p.on !== false }));
   zeRenderPackages();
@@ -5405,7 +5397,7 @@ function openZoneEdit(id) {
   document.getElementById('ze-name').value = z.name || '';
   document.getElementById('ze-name-en').value = z.nameEn || '';
   document.getElementById('ze-capacity').value = z.capacity;
-  document.getElementById('ze-deposit').value = z.minDeposit;
+  document.getElementById('ze-deposit').value = depositPercent(z);
   zeEditing = null; zeDraft = null; zeDragFrom = null;
   zePkgs = packagesCatalog().map(p => ({ n: String(p.n || ''), p: Number(p.p) || 0, on: p.on !== false }));
   zeRenderPackages();
@@ -5420,8 +5412,9 @@ async function saveZoneEdit() {
   let z = isNew ? null : zones.find(x => x.id === id);
   if (!isNew && !z) return;
   const capacity = Number(document.getElementById('ze-capacity').value);
-  const deposit = Number(document.getElementById('ze-deposit').value);
+  const pct = Number(document.getElementById('ze-deposit').value);
   if (!capacity || capacity < 1) { toast(ar ? 'أدخل سعة صحيحة' : 'Enter a valid capacity', 'error'); return; }
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) { toast(ar ? 'النسبة من 0 لـ 100 فقط' : 'Percentage must be 0–100', 'error'); return; }
   if (!zePkgs.length) { toast(ar ? 'أضف باكة واحدة على الأقل' : 'Add at least one package', 'error'); return; }
   if (!zePkgs.some(p => p.on !== false)) { toast(ar ? 'لازم باكة واحدة مفعّلة على الأقل' : 'At least one package must be enabled', 'error'); return; }
   const name = (document.getElementById('ze-name').value || '').trim();
@@ -5429,7 +5422,7 @@ async function saveZoneEdit() {
   if (isNew && !name) { toast(ar ? 'اكتب اسم المنطقة' : 'Enter the zone name', 'error'); return; }
   const nowActive = document.getElementById('ze-active').classList.contains('on');
   if (!z) {
-    z = { id: nextZoneId(), name: '', nameEn: '', capacity: 0, minDeposit: 0, packages: [], packageNames: [], packageActive: [], active: true };
+    z = { id: nextZoneId(), name: '', nameEn: '', capacity: 0, depositPercent: 10, packages: [], packageNames: [], packageActive: [], active: true };
     zones.push(z);
   } else {
     const minCapacity = zoneMaxBooked(z);
@@ -5452,7 +5445,7 @@ async function saveZoneEdit() {
   z.name = name || z.name;
   z.nameEn = nameEn || z.name;
   z.capacity = capacity;
-  z.minDeposit = deposit >= 0 ? deposit : 0;
+  z.depositPercent = pct;
   z.active = nowActive;
   // الباقات مشتركة — أي تعديل هنا ينطبق على كل المناطق الأربع
   sharedPackages = zePkgs.map(p => ({
@@ -5637,7 +5630,8 @@ function autoDeposit() {
   const idx = Number(document.getElementById('b-package')?.value || 0);
   const per = Number(packagePrices()[idx]) || 0;
   const guests = Number(document.getElementById('b-guests')?.value) || 0;
-  return guests * per / 10; // 10% بالضبط، من غير تقريب لأقرب جنيه أو عشرة
+  const pct = depositPercent(zones.find(x => x.id === selectedZoneId));
+  return guests * per * pct / 100; // بالنسبة المضبوطة، من غير تقريب
 }
 function depositEditable() { return currentRole === 'admin'; }
 function markDepositManual() {
@@ -5658,14 +5652,15 @@ function updateFees() {
   const guests = Number(document.getElementById('b-guests')?.value) || 0;
   const dep = Number(document.getElementById('b-deposit')?.value) || 0;
   const fees = guests * per;
+  const pct = depositPercent(zones.find(x => x.id === selectedZoneId));
   const auto = autoDeposit();
   el.innerHTML = `${guests} × ${per.toLocaleString()} ${cur()} = <b style="color:var(--brand)">${fees.toLocaleString()} ${cur()}</b> &nbsp;·&nbsp; ${t('field.totalDue') || 'Total'}: <b>${(fees + dep).toLocaleString()} ${cur()}</b>`;
   const hint = document.getElementById('deposit-hint');
   if (hint) {
     const manual = depositEditable() && depositManual && Math.abs(dep - auto) > 0.0001;
     hint.textContent = currentLang === 'ar'
-      ? `10% من الإجمالي = ${formatMoney(auto)} ${cur()}${manual ? ' — تعديل يدوي' : (depositEditable() ? ' — قابل للتعديل' : ' — تلقائي')}`
-      : `10% of total = ${formatMoney(auto)} ${cur()}${manual ? ' — manual override' : (depositEditable() ? ' — editable' : ' — auto')}`;
+      ? `${formatMoney(pct)}% من الإجمالي = ${formatMoney(auto)} ${cur()}${manual ? ' — تعديل يدوي' : (depositEditable() ? ' — قابل للتعديل' : ' — تلقائي')}`
+      : `${formatMoney(pct)}% of total = ${formatMoney(auto)} ${cur()}${manual ? ' — manual override' : (depositEditable() ? ' — editable' : ' — auto')}`;
   }
 }
 
@@ -8630,7 +8625,10 @@ function gToDb(g) {
 function zFromDb(r) {
   return {
     id: r.id, name: sStr(r.name), nameEn: sStr(r.name_en) || sStr(r.name),
-    capacity: Number(r.capacity) || 20, minDeposit: Number(r.min_deposit) || 0, active: r.active !== false,
+    capacity: Number(r.capacity) || 20, depositPercent: (() => {
+      const v = Number(r.min_deposit);
+      return Number.isFinite(v) && v >= 0 && v <= 100 ? v : 10;
+    })(), active: r.active !== false,
     packages: Array.isArray(r.packages) && r.packages.length
       ? r.packages.map(n => Number(n) || 0) : [50,80,120,100],
     packageNames: Array.isArray(r.package_names) && r.package_names.length
@@ -8642,7 +8640,7 @@ function zFromDb(r) {
 function zToDb(z) {
   return {
     id: z.id, name: z.name, name_en: z.nameEn || z.name, capacity: Number(z.capacity) || 20,
-    min_deposit: Number(z.minDeposit) || 0, active: z.active !== false,
+    min_deposit: depositPercent(z), active: z.active !== false,
     packages: Array.isArray(z.packages) && z.packages.length ? z.packages : [50,80,120,100],
     package_names: z.packageNames || null,
     package_active: z.packageActive || null
