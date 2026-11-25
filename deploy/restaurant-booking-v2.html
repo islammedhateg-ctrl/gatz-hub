@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="app-build" content="6ad0e16">
+<meta name="app-build" content="perf-1">
 <script>
 if (location.protocol === 'http:' && !['127.0.0.1','localhost'].includes(location.hostname)) {
   location.replace('https://' + location.host + location.pathname + location.search + location.hash);
@@ -4550,24 +4550,15 @@ function setRole(role) {
 /* ============================================================
    INIT
    ============================================================ */
-window.onload = async () => {
+window.onload = () => {
   applyTheme();
   applyFont();
   applyI18n();
   applyUX();
   cloudInit();
-  await initPushSubscription();
   seedUsers();
-  // استعادة الجلسة: Supabase أولاً، ثم المحلي
-  let cloudSession = false;
-  if (CLOUD.enabled) {
-    try { cloudSession = !!(await cloudRestore()); } catch (e) { cloudWarn(e); }
-  }
-  if (!cloudSession && currentUser) {
-    const fresh = users.find(u => u.id === currentUser.id && u.active);
-    if (fresh) { currentUser = fresh; setRole(fresh.role); }
-    else { currentUser = null; sessionStorage.removeItem('rest_session'); }
-  }
+
+  // رسم فوري من البيانات المحلية قبل أي انتظار شبكة
   applyAuthState();
   // seed تجريبي فقط في الوضع المحلي (في السحابة البيانات تأتي من Supabase)
   if (!CLOUD.enabled && bookings.length === 0) {
@@ -4600,25 +4591,27 @@ window.onload = async () => {
   applyI18n();
   // رابط الدعوة: عرض نموذج تسجيل الضيف (لا يحتاج دخول الموظفين)
   const isInvite = handleInviteHash();
-  if (CLOUD.enabled && currentUser) cloudSubscribe();
-  // إظهار شاشة الدخول إذا لم يكن هناك حساب مسجّل (وليس وضع دعوة)
-  if (!currentUser && !isInvite) {
-    currentRole = 'door';
-    setRole('door');
-    document.getElementById('auth-modal').classList.add('open');
-    switchAuthTab('login');
-  } else if (currentUser && !isInvite) {
-    // العودة لآخر شاشة كان الموظف عليها قبل الـ Reload (الأدمين يبدأ بالداشبورد)
-    const savedTab = localStorage.getItem('rest_last_tab');
-    const allowed = {
-      admin: ['dashboard','new-booking','bookings','calendar','guests','finance','zones','door','settings'],
-      staff: ['dashboard','new-booking','bookings','calendar','guests','door'],
-      door: ['door']
-    }[currentRole] || ['door'];
-    const target = savedTab && allowed.includes(savedTab) ? savedTab : 'dashboard';
-    const navBtn = document.querySelector(`.nav-item[data-tab="${target}"]`) || document.querySelector(`[data-tab="${target}"]`);
-    if (navBtn) showTab(target, navBtn);
-  }
+  const applyAuthUI = () => {
+    // إظهار شاشة الدخول إذا لم يكن هناك حساب مسجّل (وليس وضع دعوة)
+    if (!currentUser && !isInvite) {
+      currentRole = 'door';
+      setRole('door');
+      document.getElementById('auth-modal').classList.add('open');
+      switchAuthTab('login');
+    } else if (currentUser && !isInvite) {
+      // العودة لآخر شاشة كان الموظف عليها قبل الـ Reload (الأدمين يبدأ بالداشبورد)
+      const savedTab = localStorage.getItem('rest_last_tab');
+      const allowed = {
+        admin: ['dashboard','new-booking','bookings','calendar','guests','finance','zones','door','settings'],
+        staff: ['dashboard','new-booking','bookings','calendar','guests','door'],
+        door: ['door']
+      }[currentRole] || ['door'];
+      const target = savedTab && allowed.includes(savedTab) ? savedTab : 'dashboard';
+      const navBtn = document.querySelector(`.nav-item[data-tab="${target}"]`) || document.querySelector(`[data-tab="${target}"]`);
+      if (navBtn) showTab(target, navBtn);
+    }
+  };
+  applyAuthUI();
   // Register service worker (PWA) - only on http/https (not file://)
   if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
     navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -4631,7 +4624,7 @@ window.onload = async () => {
           }
         });
       });
-      // تحقق من التحديثات عند كل تحميل (Network-first يتولى الباقي)
+      // تحقق من التحديثات عند كل تحميل (Stale-while-revalidate يتولى الباقي)
       reg.update().catch(() => {});
       // عند تفعيل نسخة جديدة، أعد التحميل مرة واحدة فقط عشان كل الأجهزة تشوف التحديث
       let reloaded = false;
@@ -4642,6 +4635,25 @@ window.onload = async () => {
       });
     }).catch(() => {});
   }
+
+  // مزامنة Supabase والإشعارات في الخلفية — الواجهة ات رسمت بالفعل
+  (async () => {
+    try { await initPushSubscription(); } catch (e) {}
+    try {
+      let cloudSession = false;
+      if (CLOUD.enabled) {
+        try { cloudSession = !!(await cloudRestore()); } catch (e) { cloudWarn(e); }
+      }
+      if (!cloudSession && currentUser) {
+        const fresh = users.find(u => u.id === currentUser.id && u.active);
+        if (fresh) { currentUser = fresh; setRole(fresh.role); }
+        else { currentUser = null; sessionStorage.removeItem('rest_session'); }
+      }
+      applyAuthState();
+      if (CLOUD.enabled && currentUser) cloudSubscribe();
+      applyAuthUI();
+    } catch (e) {}
+  })();
 };
 
 // ترجمة قيم type/payment للعرض (البيانات تُحفظ عربياً للتوافق مع القديم)
