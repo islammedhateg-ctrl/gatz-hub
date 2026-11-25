@@ -6880,6 +6880,10 @@ function qrTicketLines(b) {
   const pi = Number(b.packageIndex);
   const rawPkg = Number.isInteger(pi) && pi >= 0 && zone.packageNames && zone.packageNames[pi]
     ? zone.packageNames[pi] : (Number.isInteger(pi) && pi >= 0 ? 'باقة ' + (pi + 1) : '');
+  // صورة واتساب دايماً إنجليزي — حتى لو لغة التطبيق عربي
+  const canon = pkgCanonicalName(rawPkg, pi);
+  const pkgNum = canon.match(/^باقة\s*([0-9٠-٩]+)$/);
+  const pkgEn = pkgNum ? 'Package ' + (pkgNumber(pkgNum[1]) || pi + 1) : canon;
   return [
     '👤 ' + (b.name || '—'),
     '🔢 ' + (b.id || '—'),
@@ -6888,7 +6892,7 @@ function qrTicketLines(b) {
     '📍 ' + zoneNameEn(zone),
     '👥 ' + (Number(b.guests) || 0) + ' guests',
     '💰 ' + formatMoney(b.deposit) + ' EGP',
-    '📦 ' + (rawPkg ? pkgDisplayName(rawPkg, pi) : '—')
+    '📦 ' + (rawPkg ? pkgEn : '—')
   ];
 }
 // توليد QR في حاوية مؤقتة (يعمل حتى لو لم تُفتح نافذة التذكرة)
