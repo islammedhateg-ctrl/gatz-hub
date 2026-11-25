@@ -6386,9 +6386,8 @@ function b64urlDecode(s) {
   return new TextDecoder().decode(bytes);
 }
 function makeInviteCode(b) {
-  // الرابط بيحمل ID الحجز بس — البيانات بتتقرأ من الحجز وقت فتح الرابط (مش وقت الإنشاء)
-  const clean = v => String(v == null ? '' : v).replace(/~/g, ' ');
-  return b64urlEncode([b.id, b.name].map(clean).join('~'));
+  // ID الحجز بس — أقصر رابط ممكن، والبيانات بتتقرأ من الحجز وقت الفتح
+  return b64urlEncode(String(b.id || ''));
 }
 function parseInviteCode(code) {
   // توافق مع الصيغة القديمة: JSON مُشفَّر بـ encodeURIComponent
@@ -6870,22 +6869,40 @@ const QR_SHARE_SIZE = 180;
 // ملاحظة: صورة QR لا تُرفق عبر wa.me (نص فقط) — الكود يظهر في التطبيق ويُذكر في الرسالة.
 function buildCustomerWaMessage(b) {
   const zone = zones.find(z => z.id === b.zoneId) || { name: b.zoneId, nameEn: b.zoneId };
-  const ticket = `╔═══════════════════════════╗\n     🎫  Gatz. Hub Reservation\n     Booking Confirmation\n╚═══════════════════════════╝\n\n👤 Customer: ${b.name}\n🔢 Booking ID: ${b.id}\n📅 Date: ${b.date}\n⏰ Time: ${b.start} – ${b.end}\n📍 Zone: ${zoneNameEn(zone)}\n👥 Guests: ${b.guests}\n💰 Deposit: ${formatMoney(b.deposit)} EGP\n\n🎯 Show the QR code at the entrance.`;
-  const invite = `\n\n────────────────────\n👥 Invite your friends!\nShare this link with your friends to register and get their own entry QR:\n${buildInviteLink(b)}\n\nThank you for choosing Gatz. Hub 🌟`;
+  const ticket = `╔═══════════════════════════╗\n     🎫  Gatz. Hub Reservation\n     Booking Confirmation\n╚═══════════════════════════╝\n\n👤 Customer: ${b.name}\n🔢 Booking ID: ${b.id}\n📅 Date: ${b.date}\n⏰ Time: ${b.start} – ${b.end}\n📍 Zone: ${zoneNameEn(zone)}\n👥 Guests: ${b.guests}\n💰 Deposit: ${formatMoney(b.deposit)} EGP`;
+  const invite = `\n\n────────────────────\n👥 Invite friends:\n${buildInviteLink(b)}\n\nThank you for choosing Gatz. Hub 🌟`;
   return ticket + invite;
 }
 
 // توليد QR في حاوية مؤقتة (يعمل حتى لو لم تُفتح نافذة التذكرة)
-function makeQrDataUrl(text, size) {
+function makeQrDataUrl(text, size, caption) {
+  const s = Number(size) || QR_SHARE_SIZE;
   const tmp = document.createElement('div');
   tmp.style.cssText = 'position:absolute;left:-99999px;top:-99999px;width:1px;height:1px;overflow:hidden;';
   document.body.appendChild(tmp);
   try {
-    new QRCode(tmp, { text: text, width: size || QR_SHARE_SIZE, height: size || QR_SHARE_SIZE });
-    const img = tmp.querySelector('img');
-    if (img && img.src && img.src.indexOf('data:image') === 0) return img.src;
-    const canvas = tmp.querySelector('canvas');
-    return canvas ? canvas.toDataURL('image/png') : '';
+    new QRCode(tmp, { text: text, width: s, height: s });
+    const src = tmp.querySelector('canvas');
+    if (!src) {
+      const img = tmp.querySelector('img');
+      return img && img.src && img.src.indexOf('data:image') === 0 ? img.src : '';
+    }
+    const lines = caption ? String(caption).split('\n') : [];
+    const out = document.createElement('canvas');
+    out.width = s;
+    out.height = s + (lines.length ? 8 + lines.length * 15 : 0);
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(src, 0, 0, s, s);
+    if (lines.length) {
+      ctx.fillStyle = '#111';
+      ctx.font = '700 12px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      lines.forEach((line, i) => ctx.fillText(line, s / 2, s + 14 + i * 15));
+    }
+    return out.toDataURL('image/png');
   } catch (e) {
     return '';
   } finally {
@@ -6896,7 +6913,7 @@ function makeQrDataUrl(text, size) {
 function qrImageDataUrl(booking) {
   // دايماً صورة مشاركة صغيرة — حتى لو نافذة التذكرة مفتوحة
   const b = booking || bookings.find(x => x.id === currentQrBookingId);
-  return b ? makeQrDataUrl(b.id, QR_SHARE_SIZE) : '';
+  return b ? makeQrDataUrl(b.id, QR_SHARE_SIZE, '🎯 Show the QR code\nat the entrance') : '';
 }
 function dataUrlToFile(dataUrl, filename) {
   const parts = dataUrl.split(',');
