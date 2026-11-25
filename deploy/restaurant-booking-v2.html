@@ -1982,7 +1982,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 <div class="form-group">
                   <label data-i18n="field.date">تاريخ الحجز <span class="req">*</span></label>
                   <div class="has-icon"><i class="fa-solid fa-calendar-days field-icon"></i>
-                    <input class="input" type="date" id="b-date" min="" data-required="1" required onchange="checkBookingDate(); refreshQuickChips();">
+                    <input class="input" type="date" id="b-date" min="" data-required="1" required onchange="checkZoneCapacity(); refreshQuickChips();">
                   </div>
                   <div class="helper" id="date-warning" style="color:var(--danger); font-weight:600;"></div>
                 </div>
@@ -2002,7 +2002,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 <div class="form-group">
                   <label data-i18n="field.start">وقت الوصول <span class="req">*</span></label>
                   <div class="has-icon"><i class="fa-solid fa-clock field-icon"></i>
-                    <input class="input" type="time" id="b-start" min="10:00" max="23:59" value="18:00" data-required="1" required onchange="refreshTimeDisplays(); refreshQuickChips(); refreshHoursHints();">
+                    <input class="input" type="time" id="b-start" min="10:00" max="23:59" value="18:00" data-required="1" required onchange="refreshTimeDisplays(); refreshQuickChips(); refreshHoursHints(); checkZoneCapacity();">
                   </div>
                   <div class="helper" id="start-hint"></div>
                 </div>
@@ -2613,7 +2613,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
         </div>
       </div>
       <div style="margin-bottom:12px;">
-        <label style="display:block; font-weight:700; font-size:.8rem; margin-bottom:8px;" data-i18n="zones.packages">الباقات (الاسم + السعر للفرد)</label>
+        <label style="display:block; font-weight:700; font-size:.8rem; margin-bottom:8px;" data-i18n="zones.packages">الباقات (قائمة مشتركة لكل المناطق — الاسم + السعر للفرد)</label>
         <div id="ze-packages" style="display:flex; flex-direction:column; gap:6px;"></div>
         <button type="button" class="btn btn-outline" style="width:100%; margin-top:8px; border-style:dashed;" onclick="zeAddPackage()"><i class="fa-solid fa-plus"></i> <span data-i18n="pkg.add">إضافة باكدج جديدة</span></button>
       </div>
@@ -3107,7 +3107,7 @@ const I18N = {
     'zones.nameAr': 'الاسم (عربي)',
     'zones.nameEn': 'الاسم (إنجليزي)',
     'zones.capacity': 'السعة (أفراد)',
-    'zones.packages': 'أسعار الباقات (للفرد)',
+    'zones.packages': 'الباقات (قائمة مشتركة لكل المناطق — الاسم + السعر للفرد)',
     'pkg.1': 'باقة 1', 'pkg.2': 'باقة 2', 'pkg.3': 'باقة 3', 'pkg.4': 'باقة 4',
     'pkg.add': 'إضافة باكدج جديدة', 'pkg.none': 'لا توجد باقات متاحة',
     'zones.minDeposit': 'الحد الأدنى للديبوزيت',
@@ -3511,7 +3511,7 @@ const I18N = {
     'zones.nameAr': 'Name (Arabic)',
     'zones.nameEn': 'Name (English)',
     'zones.capacity': 'Capacity (guests)',
-    'zones.packages': 'Package prices (per person)',
+    'zones.packages': 'Packages (shared list for all zones — name + price per person)',
     'pkg.1': 'Package 1', 'pkg.2': 'Package 2', 'pkg.3': 'Package 3', 'pkg.4': 'Package 4',
     'pkg.add': 'Add new package', 'pkg.none': 'No packages available',
     'zones.minDeposit': 'Minimum deposit',
@@ -5367,7 +5367,7 @@ function openZoneNew() {
   document.getElementById('ze-capacity').value = 20;
   document.getElementById('ze-deposit').value = 0;
   zeEditing = null; zeDraft = null; zeDragFrom = null;
-  zePkgs = [50,80,120,100].map((p, i) => ({ n: t('pkg.' + (i + 1)), p, on: true }));
+  zePkgs = packagesCatalog().map(p => ({ n: String(p.n || ''), p: Number(p.p) || 0, on: p.on !== false }));
   zeRenderPackages();
   document.getElementById('ze-active').classList.add('on');
   document.getElementById('zone-edit-modal').classList.add('open');
@@ -5407,11 +5407,7 @@ function openZoneEdit(id) {
   document.getElementById('ze-capacity').value = z.capacity;
   document.getElementById('ze-deposit').value = z.minDeposit;
   zeEditing = null; zeDraft = null; zeDragFrom = null;
-  zePkgs = (z.packages || [50,80,120,100]).map((p, i) => ({
-    n: (z.packageNames && z.packageNames[i]) || ('باقة ' + (i + 1)),
-    p: Number(p) || 0,
-    on: z.packageActive ? z.packageActive[i] !== false : true
-  }));
+  zePkgs = packagesCatalog().map(p => ({ n: String(p.n || ''), p: Number(p.p) || 0, on: p.on !== false }));
   zeRenderPackages();
   document.getElementById('ze-active').classList.toggle('on', z.active !== false);
   document.getElementById('zone-edit-modal').classList.add('open');
@@ -5439,8 +5435,8 @@ async function saveZoneEdit() {
     const minCapacity = zoneMaxBooked(z);
     if (capacity < minCapacity) {
       toast(ar
-        ? `السعة الجديدة (${capacity}) أقل من أعلى يوم محجوز (${minCapacity}) — أدخل ${minCapacity} أو أكتر`
-        : `New capacity (${capacity}) is below the busiest booked day (${minCapacity}) — enter ${minCapacity} or more`, 'error');
+        ? `السعة الجديدة (${capacity}) أقل من أعلى تزامن محجوز (${minCapacity}) — أدخل ${minCapacity} أو أكتر`
+        : `New capacity (${capacity}) is below the peak concurrent guests (${minCapacity}) — enter ${minCapacity} or more`, 'error');
       return;
     }
     if (z.active !== false && !nowActive) {
@@ -5457,13 +5453,17 @@ async function saveZoneEdit() {
   z.nameEn = nameEn || z.name;
   z.capacity = capacity;
   z.minDeposit = deposit >= 0 ? deposit : 0;
-  z.packages = zePkgs.map(p => Math.max(0, Number(p.p) || 0));
-  z.packageNames = zePkgs.map(p => p.n);
-  z.packageActive = zePkgs.map(p => p.on !== false);
   z.active = nowActive;
+  // الباقات مشتركة — أي تعديل هنا ينطبق على كل المناطق الأربع
+  sharedPackages = zePkgs.map(p => ({
+    n: String(p.n || '').trim() || 'باقة',
+    p: Math.max(0, Number(p.p) || 0),
+    on: p.on !== false
+  }));
+  applyPackagesCatalog();
   let cloudFailed = false;
   if (CLOUD.enabled && CLOUD.client) {
-    const { error } = await CLOUD.client.from('zones').upsert(zToDb(z));
+    const { error } = await CLOUD.client.from('zones').upsert(zones.map(zToDb));
     cloudFailed = !!error;
   }
   CLOUD.internalSave = true; saveData(); CLOUD.internalSave = false;
@@ -5481,27 +5481,66 @@ async function saveZoneEdit() {
 /* ============================================================
    ZONE CARDS (selector in form)
    ============================================================ */
-// أعلى عدد محجوز في المنطقة في يوم واحد — السعة يومية، فالحد الأدنى للسعة هو أكبر يوم محجوز
-function zoneMaxBooked(z) {
-  const byDate = {};
-  bookings.filter(b => b.zoneId === z.id && !b.cancelled && b.date)
-    .forEach(b => { byDate[b.date] = (byDate[b.date] || 0) + (Number(b.guests) || 0); });
-  return Math.max(0, ...Object.values(byDate));
+// تحويل اليوم إلى دقائق مطلقة عشان نقارن التزامن عبر الأيام
+function dateDayNumber(iso) {
+  const { y, m, d } = dateParts(iso);
+  if (!y || !m || !d) return 0;
+  return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
 }
-// المتاح فعلياً في المنطقة يوم الحجز (الحجز الملغي والحجز اللي بنعدّله مش محسوبين)
-function zoneRemaining(z, date = document.getElementById('b-date')?.value) {
+function bookingAbsSpan(b) {
+  const [s, e] = bookingSpan(b.start, b.end);
+  const base = dateDayNumber(b.date) * 1440;
+  return { s: base + s, e: base + e, g: Number(b.guests) || 0 };
+}
+function zoneActiveSpans(z) {
+  if (!z) return [];
+  return bookings.filter(b => b.zoneId === z.id && !b.cancelled && b.date && b.id !== editingBookingId)
+    .map(bookingAbsSpan).filter(x => x.e > x.s);
+}
+// أعلى تزامن فعلي في الزون أثناء فترة الحجز الجديد (مش مجموع اليوم)
+function zonePeakInWindow(z, date, start, end) {
+  const [ns, ne] = bookingSpan(start, end);
+  const base = dateDayNumber(date) * 1440;
+  const S = base + ns, E = base + ne;
+  const spans = zoneActiveSpans(z).filter(x => x.s < E && x.e > S);
+  if (!spans.length) return 0;
+  const points = [S, ...spans.map(x => x.s).filter(t => t > S && t < E)];
+  let peak = 0;
+  points.forEach(t => {
+    const concurrent = spans.reduce((sum, x) => sum + (x.s <= t && t < x.e ? x.g : 0), 0);
+    if (concurrent > peak) peak = concurrent;
+  });
+  return peak;
+}
+// المتاح في المنطقة أثناء فترة الحجز — الحجز الملغي واللي بنعدّله مش محسوبين
+function zoneRemaining(z, date = document.getElementById('b-date')?.value, start, end) {
   if (!z) return 0;
+  if (start && end) return z.capacity - zonePeakInWindow(z, date, start, end);
   const used = bookings.filter(b => b.zoneId === z.id && b.date === date && !b.cancelled && b.id !== editingBookingId)
     .reduce((s, b) => s + (b.guests || 0), 0);
   return z.capacity - used;
+}
+// أعلى تزامن في المنطقة — الحد الأدنى المسموح للسعة
+function zoneMaxBooked(z) {
+  const spans = zoneActiveSpans(z);
+  if (!spans.length) return 0;
+  const points = spans.reduce((arr, x) => arr.concat([x.s, x.e]), []);
+  let peak = 0;
+  points.forEach(t => {
+    const concurrent = spans.reduce((sum, x) => sum + (x.s <= t && t < x.e ? x.g : 0), 0);
+    if (concurrent > peak) peak = concurrent;
+  });
+  return peak;
 }
 function renderZoneCards() {
   const container = document.getElementById('zone-cards');
   if (!container) return;
   const guests = Number(document.getElementById('b-guests').value) || 0;
   const date = document.getElementById('b-date').value;
+  const start = document.getElementById('b-start')?.value || '';
+  const end = document.getElementById('b-end')?.value || autoEndForDate() || '00:00';
   container.innerHTML = zones.filter(z => z.active).map(z => {
-    const remaining = zoneRemaining(z, date);
+    const remaining = zoneRemaining(z, date, start, end);
     const used = z.capacity - remaining;
     const over = guests > remaining;
     const selected = selectedZoneId === z.id;
@@ -5530,18 +5569,62 @@ function selectZone(id) {
   renderPackageOptions();
 }
 
-// أسعار الباقات للمنطقة المختارة
+// قائمة الباقات المشتركة — واحدة لكل المناطق الأربع
+const PKG_KEY = 'rest_packages_v1';
+let sharedPackages = null;
+function defaultPackages() {
+  return [50,80,120,100].map((p, i) => ({ n: t('pkg.' + (i + 1)), p, on: true }));
+}
+function packagesFromZone(z) {
+  if (!z || !Array.isArray(z.packages) || !z.packages.length) return null;
+  return z.packages.map((p, i) => ({
+    n: (z.packageNames && z.packageNames[i]) || t('pkg.' + (i + 1)),
+    p: Number(p) || 0,
+    on: z.packageActive ? z.packageActive[i] !== false : true
+  }));
+}
+function packagesCatalog() {
+  if (Array.isArray(sharedPackages) && sharedPackages.length) return sharedPackages;
+  try {
+    const saved = JSON.parse(localStorage.getItem(PKG_KEY) || 'null');
+    if (Array.isArray(saved) && saved.length) {
+      sharedPackages = saved.map(x => ({ n: String(x.n || ''), p: Number(x.p) || 0, on: x.on !== false }));
+      return sharedPackages;
+    }
+  } catch (e) {}
+  sharedPackages = packagesFromZone(zones.find(x => Array.isArray(x.packages) && x.packages.length)) || defaultPackages();
+  return sharedPackages;
+}
+function applyPackagesCatalog() {
+  const pkgs = packagesCatalog();
+  const prices = pkgs.map(p => Math.max(0, Number(p.p) || 0));
+  const names = pkgs.map(p => String(p.n || ''));
+  const active = pkgs.map(p => p.on !== false);
+  zones.forEach(z => {
+    z.packages = prices.slice();
+    z.packageNames = names.slice();
+    z.packageActive = active.slice();
+  });
+  try { localStorage.setItem(PKG_KEY, JSON.stringify(pkgs)); } catch (e) {}
+}
+function syncSharedPackagesFromZones() {
+  const first = packagesFromZone(zones.find(x => Array.isArray(x.packages) && x.packages.length));
+  if (!first) return;
+  sharedPackages = first;
+  applyPackagesCatalog();
+}
+// أسعار الباقات — قائمة مشتركة لكل المناطق
 function packagePrices() {
-  const z = zones.find(x => x.id === selectedZoneId);
-  return (z && Array.isArray(z.packages) && z.packages.length) ? z.packages : [50,80,120,100];
+  const prices = packagesCatalog().map(p => Math.max(0, Number(p.p) || 0));
+  return prices.length ? prices : [50,80,120,100];
 }
 function renderPackageOptions(keepIndex) {
   const sel = document.getElementById('b-package');
   if (!sel) return;
-  const z = zones.find(x => x.id === selectedZoneId);
-  const prices = packagePrices();
-  const names = (z && z.packageNames) || prices.map((_, i) => t('pkg.' + (i + 1)));
-  const active = (z && z.packageActive) || prices.map(() => true);
+  const pkgs = packagesCatalog();
+  const prices = pkgs.map(p => Math.max(0, Number(p.p) || 0));
+  const names = pkgs.map(p => p.n || '');
+  const active = pkgs.map(p => p.on !== false);
   const available = prices.map((_, i) => i).filter(i => active[i] !== false);
   const wanted = keepIndex != null ? keepIndex : (Number(sel.value) || 0);
   sel.innerHTML = available.map(i => `<option value="${i}">${escapeHtml(names[i] || t('pkg.' + (i + 1)))} — ${Number(prices[i]).toLocaleString()} ${cur()}</option>`).join('')
@@ -5954,7 +6037,10 @@ function checkZoneCapacity() {
   const z = zones.find(x => x.id === selectedZoneId);
   const guests = Number(document.getElementById('b-guests').value) || 0;
   const warn = document.getElementById('capacity-warning');
-  const remaining = zoneRemaining(z);
+  const date = document.getElementById('b-date').value;
+  const start = document.getElementById('b-start')?.value || '';
+  const end = document.getElementById('b-end')?.value || autoEndForDate() || '00:00';
+  const remaining = zoneRemaining(z, date, start, end);
   if (z && guests > remaining) {
     warn.textContent = `⚠ ${guests} > ${currentLang === 'ar' ? 'المتبقي' : 'available'} ${remaining}`;
     warn.classList.add('error');
@@ -6090,8 +6176,15 @@ function nextStep() {
       toast(currentLang === 'ar' ? 'الوصول من ١٠ صباحاً لـ ١١:٥٩ مساءً' : 'Arrival must be 10:00 AM – 11:59 PM', 'error');
       return;
     }
-    // conflict check
-    const conflict = bookings.find(b => b.id !== editingBookingId && !b.cancelled && b.zoneId === selectedZoneId && b.date === date && spansOverlap(start, end, b.start, b.end));
+    // تنبيه التعارض مهم — بيشمل الحجوزات اللي بعد نص الليل كمان
+    const [cs0, ce0] = bookingSpan(start, end);
+    const cbase = dateDayNumber(date) * 1440;
+    const cs = cbase + cs0, ce = cbase + ce0;
+    const conflict = bookings.find(b => {
+      if (b.id === editingBookingId || b.cancelled || b.zoneId !== selectedZoneId || !b.date) return false;
+      const x = bookingAbsSpan(b);
+      return x.s < ce && x.e > cs;
+    });
     if (conflict) {
       confirmAction('تعارض حجز', `Zone محجوزة لـ ${conflict.name} (${conflict.start}-${conflict.end}). متابعة؟`).then(ok => {
         if (ok) { currentStep = 3; updateStepper(); }
@@ -6181,7 +6274,7 @@ function saveBooking() {
     checkBookingDate(); return;
   }
   const zone = zones.find(x => x.id === selectedZoneId);
-  if (zone && guests > zoneRemaining(zone, date)) {
+  if (zone && guests > zoneRemaining(zone, date, start, end)) {
     toast(currentLang === 'ar' ? 'المنطقة لا تتسع لهذا العدد' : 'Zone capacity exceeded', 'error');
     checkZoneCapacity(); return;
   }
@@ -8602,6 +8695,7 @@ async function cloudLoad() {
       // نزرع الافتراضي أول مرة بس — لو الأدمين حذف كل المناطق ما نرجّعهمش
       await CLOUD.client.from('zones').upsert(zones.map(zToDb));
     }
+    syncSharedPackagesFromZones();
     CLOUD.internalSave = true; saveData(); CLOUD.internalSave = false;
     renderAll();
     if (typeof updateQuickDoorSelect === 'function') updateQuickDoorSelect();
@@ -8710,6 +8804,7 @@ async function cloudRestore() {
   return currentUser;
 }
 // تهيئة حقول الباقة والتاريخ والوقت في نموذج الحجز
+syncSharedPackagesFromZones();
 renderPackageOptions();
 if (!document.getElementById('b-date').value) document.getElementById('b-date').value = todayStr();
 refreshDateDisplay();
