@@ -7957,7 +7957,11 @@ async function startQrScan() {
         canvas.height = video.videoHeight;
         canvas.getContext('2d').drawImage(video, 0, 0);
         const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-        if (blob) text = await qrFrameScanner.scanFile(blob, true).catch(() => '');
+        if (blob) {
+          // html5-qrcode بيطلب File مش Blob — عشان كدة بنلفّ الإطار في File
+          const file = new File([blob], 'qr-frame.png', { type: 'image/png' });
+          text = await qrFrameScanner.scanFile(file, true).catch(() => '');
+        }
       }
     } catch (e) { /* فشل هذه المحاولة — نكمل */ }
 
