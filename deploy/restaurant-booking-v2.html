@@ -2014,14 +2014,14 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 <div class="form-group">
                   <label data-i18n="field.guests">عدد الأفراد <span class="req">*</span></label>
                   <div class="has-icon"><i class="fa-solid fa-users field-icon"></i>
-                    <input class="input" type="number" id="b-guests" min="1" value="10" required onchange="checkZoneCapacity(); updateFees();" oninput="updateFees()">
+                    <input class="input" type="number" id="b-guests" min="1" value="10" required onchange="checkZoneCapacity(); syncDepositField(); updateFees();" oninput="syncDepositField(); updateFees();">
                   </div>
                   <div class="helper" id="capacity-warning"></div>
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.package">الباقة (رسوم لكل ضيف)</label>
                   <div class="has-icon"><i class="fa-solid fa-crown field-icon"></i>
-                    <select class="input" id="b-package" onchange="updateFees()"></select>
+                    <select class="input" id="b-package" onchange="syncDepositField(); updateFees();"></select>
                   </div>
                 </div>
               </div>
@@ -2033,10 +2033,11 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
             <!-- Step 3: Payment -->
             <div class="step-panel" data-step="3" style="display:none;">
               <div class="form-group full" style="margin-bottom:16px;">
-                <label data-i18n="field.deposit">قيمة الديبوزيت (ج.م) <span class="req">*</span></label>
+                <label data-i18n="field.deposit">الديبوزيت 10% من الإجمالي (ج.م) <span class="req">*</span></label>
                 <div class="has-icon"><i class="fa-solid fa-sack-dollar field-icon"></i>
-                  <input class="input" type="number" id="b-deposit" min="0" value="500" required oninput="updateFees()">
+                  <input class="input" type="number" id="b-deposit" min="0" value="0" required oninput="markDepositManual(); updateFees();">
                 </div>
+                <div class="helper" id="deposit-hint" style="color:var(--muted);"></div>
               </div>
               <div class="form-group full" style="margin-bottom:16px;">
                 <div id="fees-summary" style="font-size:.8rem; color:var(--muted); text-align:center;"></div>
@@ -3075,7 +3076,7 @@ const I18N = {
     'field.start': 'وقت الوصول',
     'field.end': 'وقت المغادرة',
     'field.zone': 'اختيار المنطقة',
-    'field.deposit': 'قيمة الديبوزيت (ج.م)',
+    'field.deposit': 'الديبوزيت 10% من الإجمالي (ج.م)',
     'field.payment': 'طريقة الدفع',
     'type.birthday': 'عيد ميلاد',
     'type.outing': 'أوتنج',
@@ -3479,7 +3480,7 @@ const I18N = {
     'field.start': 'Arrival Time',
     'field.end': 'Departure Time',
     'field.zone': 'Select Zone',
-    'field.deposit': 'Deposit Amount (EGP)',
+    'field.deposit': 'Deposit (10% of total, EGP)',
     'field.payment': 'Payment Method',
     'type.birthday': 'Birthday',
     'type.outing': 'Outing',
@@ -4044,9 +4045,13 @@ function loadDraft() {
   document.getElementById('b-guests').value = d.guests || 10;
   document.getElementById('b-start').value = d.start || '18:00';
   refreshHoursHints(); refreshQuickChips();
-  document.getElementById('b-deposit').value = d.deposit || 500;
   selectedZoneId = d.zoneId || null;
   renderPackageOptions(d.packageIndex || 0);
+  const draftAuto = autoDeposit();
+  const draftSaved = Number(d.deposit);
+  depositManual = depositEditable() && Number.isFinite(draftSaved) && Math.abs(draftSaved - draftAuto) > 0.0001;
+  document.getElementById('b-deposit').value = depositManual ? draftSaved : draftAuto;
+  updateFees();
   selectedPayment = d.payment || 'كاش';
   document.getElementById('b-payment').value = selectedPayment;
   document.querySelectorAll('.pay-card').forEach(c => c.classList.toggle('selected', c.getAttribute('data-pay') === selectedPayment));
@@ -4101,6 +4106,7 @@ document.addEventListener('input', (e) => {
 });
 let currentStep = 1;
 let selectedZoneId = null;
+let depositManual = false;
 let selectedPayment = 'كاش';
 let recentCheckins = JSON.parse(localStorage.getItem('rest_checkins')) || [];
 let lastCheckinUndo = null;
@@ -4544,6 +4550,7 @@ function setRole(role) {
     showTab(first, document.querySelector(`[data-tab="${first}"]`));
   }
   applyAuthState();
+  syncDepositField(true);
   toast((roleNames[role] || role) + ' — ' + (t('toast.roleSet') || ''), 'info');
 }
 
@@ -5538,7 +5545,25 @@ function renderPackageOptions(keepIndex) {
   sel.innerHTML = available.map(i => `<option value="${i}">${escapeHtml(names[i] || t('pkg.' + (i + 1)))} — ${Number(prices[i]).toLocaleString()} ${cur()}</option>`).join('')
     || `<option value="" disabled>${t('pkg.none') || 'No packages available'}</option>`;
   sel.value = String(available.includes(wanted) ? wanted : (available[0] != null ? available[0] : ''));
+  syncDepositField();
   updateFees();
+}
+function autoDeposit() {
+  const idx = Number(document.getElementById('b-package')?.value || 0);
+  const per = Number(packagePrices()[idx]) || 0;
+  const guests = Number(document.getElementById('b-guests')?.value) || 0;
+  return guests * per / 10; // 10% بالضبط، من غير تقريب لأقرب جنيه أو عشرة
+}
+function depositEditable() { return currentRole === 'admin'; }
+function markDepositManual() {
+  if (depositEditable()) depositManual = true;
+  updateFees();
+}
+function syncDepositField(force) {
+  const el = document.getElementById('b-deposit');
+  if (!el) return;
+  el.readOnly = !depositEditable();
+  if (force || !depositEditable() || !depositManual) el.value = autoDeposit();
 }
 function updateFees() {
   const el = document.getElementById('fees-summary');
@@ -5548,7 +5573,15 @@ function updateFees() {
   const guests = Number(document.getElementById('b-guests')?.value) || 0;
   const dep = Number(document.getElementById('b-deposit')?.value) || 0;
   const fees = guests * per;
+  const auto = autoDeposit();
   el.innerHTML = `${guests} × ${per.toLocaleString()} ${cur()} = <b style="color:var(--brand)">${fees.toLocaleString()} ${cur()}</b> &nbsp;·&nbsp; ${t('field.totalDue') || 'Total'}: <b>${(fees + dep).toLocaleString()} ${cur()}</b>`;
+  const hint = document.getElementById('deposit-hint');
+  if (hint) {
+    const manual = depositEditable() && depositManual && Math.abs(dep - auto) > 0.0001;
+    hint.textContent = currentLang === 'ar'
+      ? `10% من الإجمالي = ${formatMoney(auto)} ${cur()}${manual ? ' — تعديل يدوي' : (depositEditable() ? ' — قابل للتعديل' : ' — تلقائي')}`
+      : `10% of total = ${formatMoney(auto)} ${cur()}${manual ? ' — manual override' : (depositEditable() ? ' — editable' : ' — auto')}`;
+  }
 }
 
 // منع اختيار تاريخ ماضٍ في الحجز — التوقيت المحلي مش UTC (عشان أول الساعات من اليوم ما يتحسبش يوم اللي فات)
@@ -6132,7 +6165,9 @@ function saveBooking() {
   const guests = Number(document.getElementById('b-guests').value);
   const start = document.getElementById('b-start').value;
   const end = document.getElementById('b-end').value;
-  const deposit = Number(document.getElementById('b-deposit').value);
+  const deposit = (depositEditable() && depositManual) ? Number(document.getElementById('b-deposit').value) : autoDeposit();
+  if (!Number.isFinite(deposit) || deposit < 0) { toast(t('toast.error'), 'error'); return; }
+  document.getElementById('b-deposit').value = deposit;
   const payment = document.getElementById('b-payment').value;
 
   if (!name || !phone || !whatsapp || !date || !guests || !selectedZoneId) {
@@ -6205,7 +6240,9 @@ function saveBooking() {
   document.getElementById('b-start').value = '18:00';
   refreshHoursHints(); refreshQuickChips();
   document.getElementById('b-guests').value = 10;
-  document.getElementById('b-deposit').value = 500;
+  depositManual = false;
+  syncDepositField(true);
+  updateFees();
   document.getElementById('transfer-box').style.display = 'none';
   document.getElementById('receipt-img-preview').style.display = 'none';
   currentReceiptBase64 = '';
@@ -6659,9 +6696,13 @@ function editBooking(id) {
   document.getElementById('b-guests').value = b.guests || 1;
   document.getElementById('b-start').value = b.start || '18:00';
   refreshHoursHints(); refreshQuickChips();
-  document.getElementById('b-deposit').value = b.deposit || 0;
   selectedZoneId = b.zoneId;
   renderPackageOptions(b.packageIndex != null ? b.packageIndex : 0);
+  const editAuto = autoDeposit();
+  const editSaved = Number(b.deposit);
+  depositManual = depositEditable() && Number.isFinite(editSaved) && Math.abs(editSaved - editAuto) > 0.0001;
+  document.getElementById('b-deposit').value = depositManual ? editSaved : editAuto;
+  updateFees();
   selectedPayment = b.payment || 'كاش';
   document.getElementById('b-payment').value = selectedPayment;
   // payment cards highlight
