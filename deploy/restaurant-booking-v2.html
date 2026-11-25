@@ -4259,7 +4259,7 @@ async function submitAuth() {
     try {
       const { profile } = await cloudSignIn(email, password);
       if (profile.active === false) { showAuthError(t('auth.errInactive')); return; }
-      await seedPushSession(); // جلسة الإشعارات تبقى شغالة حتى بعد الـ Logout
+      await seedPushSession(email, password); // refresh token مستقل — الـ Logout ما يبطلوش
       currentUser = {
         id: profile.id, username, name: profile.full_name || username,
         role: profile.role, active: profile.active
@@ -8778,36 +8778,32 @@ function getPushClient() {
   }
   return pushClient;
 }
-async function seedPushSession() {
+// login مستقل بنفس البيانات: refresh token خاص بالإشعارات، ما يتأثرش بـ logout الدخول
+async function seedPushSession(email, password) {
   const pc = getPushClient();
-  if (!pc || !CLOUD.client) return false;
+  if (!pc || !email || !password) return false;
   try {
-    const { data } = await CLOUD.client.auth.getSession();
-    const s = data && data.session;
-    if (!s) return false;
-    await pc.auth.setSession({ access_token: s.access_token, refresh_token: s.refresh_token });
-    return true;
+    const { data, error } = await pc.auth.signInWithPassword({ email, password });
+    return !error && !!data.session;
   } catch (e) { return false; }
 }
 async function pushAccessToken() {
   const pc = getPushClient();
-  if (pc) {
-    try {
-      const { data } = await pc.auth.getSession();
-      if (data && data.session) return data.session.access_token;
-    } catch (e) {}
-  }
-  // الأجهزة القديمة: انسخ الجلسة الحالية للجلسة المستقلة عشان ما تتكررش المشكلة
-  if (CLOUD.client) {
-    try {
-      const { data } = await CLOUD.client.auth.getSession();
-      const s = data && data.session;
-      if (s) {
-        if (pc) { try { await pc.auth.setSession({ access_token: s.access_token, refresh_token: s.refresh_token }); } catch (e) {} }
-        return s.access_token;
-      }
-    } catch (e) {}
-  }
+  if (!pc) return null;
+  // تحقق من التوكن قبل الإرسال — getSession لوحده ممكن يرجّع توكن ملغي
+  try {
+    const { data, error } = await pc.auth.getUser();
+    if (!error && data.user) {
+      const s = (await pc.auth.getSession()).data.session;
+      if (s) return s.access_token;
+    }
+  } catch (e) {}
+  // توكن قديم/منتهي: جرّب تجديده، ولو فشل امسحه عشان ما نبعتش بيه تاني
+  try {
+    const { data, error } = await pc.auth.refreshSession();
+    if (!error && data.session) return data.session.access_token;
+  } catch (e) {}
+  try { await pc.auth.signOut({ scope: 'local' }); } catch (e) {}
   return null;
 }
 
