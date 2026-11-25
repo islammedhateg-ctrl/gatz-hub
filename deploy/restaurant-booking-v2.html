@@ -1976,31 +1976,10 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
               <div class="form-grid">
                 <div class="form-group">
                   <label data-i18n="field.date">تاريخ الحجز <span class="req">*</span></label>
-                  <div class="picker-field">
-                    <button type="button" class="picker-trigger" id="b-date-trigger" onclick="toggleDatePicker(event)" aria-label="Open booking date picker">
-                      <i class="fa-solid fa-calendar-days"></i>
-                      <span class="picker-main" id="b-date-display">اختر التاريخ</span>
-                      <span class="picker-sub" id="date-sub"></span>
-                      <i class="fa-solid fa-chevron-down picker-chev"></i>
-                    </button>
-                    <input type="hidden" id="b-date" min="" data-required="1" onchange="checkBookingDate(); refreshQuickChips();">
-                    <div class="picker-panel" id="date-picker" style="display:none;">
-                      <div class="cal-head">
-                        <span class="cal-selected" id="cal-selected">—</span>
-                        <button type="button" class="cal-drop" onclick="toggleMonthList()" aria-label="Choose month"><span id="cal-month-name"></span> <i class="fa-solid fa-chevron-down"></i></button>
-                      </div>
-                      <div class="pick-list" id="month-list" style="display:none;"></div>
-                      <div class="pick-list years" id="year-list" style="display:none;"></div>
-                      <div class="cal-week" id="cal-weekdays"></div>
-                      <div class="cal-grid" id="cal-grid"></div>
-                      <div class="cal-foot">
-                        <button type="button" class="cal-drop" onclick="toggleYearList()" aria-label="Choose year"><span id="cal-year-text"></span> <i class="fa-solid fa-chevron-down"></i></button>
-                        <button type="button" class="cancel-btn" data-i18n="picker.cancel" onclick="closePickers()">إلغاء</button>
-                        <button type="button" class="done-btn" data-i18n="picker.done" onclick="closePickers()">تم</button>
-                      </div>
-                    </div>
-                    <div class="helper" id="date-warning" style="color:var(--danger); font-weight:600;"></div>
+                  <div class="has-icon"><i class="fa-solid fa-calendar-days field-icon"></i>
+                    <input class="input" type="date" id="b-date" min="" data-required="1" required onchange="checkBookingDate(); refreshQuickChips();">
                   </div>
+                  <div class="helper" id="date-warning" style="color:var(--danger); font-weight:600;"></div>
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.type">نوع الحجز <span class="req">*</span></label>
@@ -2017,44 +1996,17 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.start">وقت الوصول <span class="req">*</span></label>
-                  <div class="picker-field">
-                    <button type="button" class="picker-trigger" id="b-time-trigger" onclick="toggleTimePicker(event)" aria-label="Open arrival time picker">
-                      <i class="fa-solid fa-clock"></i>
-                      <span class="picker-main" id="b-start-display">06:00 PM</span>
-                      <span class="picker-sub" id="start-mini">18:00</span>
-                      <i class="fa-solid fa-chevron-down picker-chev"></i>
-                    </button>
-                    <input type="hidden" id="b-start" value="18:00" data-required="1" onchange="refreshTimeDisplays(); refreshQuickChips();">
-                    <div class="picker-panel" id="time-picker" style="display:none;">
-                      <div class="time-head"><b id="time-big">06:00 PM</b><span id="time-24">18:00</span></div>
-                      <div class="time-tabs">
-                        <button type="button" class="time-tab" data-period="morning" data-i18n="picker.morning" onclick="setTimePeriod('morning')">صباحاً</button>
-                        <button type="button" class="time-tab" data-period="evening" data-i18n="picker.evening" onclick="setTimePeriod('evening')">مساءً</button>
-                      </div>
-                      <div class="time-grid" id="time-grid"></div>
-                      <div class="time-foot">
-                        <button type="button" class="mini-btn" data-time="18:00" onclick="setQuickTime('18:00')">١٨:٠٠</button>
-                        <button type="button" class="mini-btn" data-time="19:00" onclick="setQuickTime('19:00')">١٩:٠٠</button>
-                        <button type="button" class="mini-btn" data-time="20:00" onclick="setQuickTime('20:00')">٢٠:٠٠</button>
-                        <button type="button" class="mini-btn" data-time="21:00" onclick="setQuickTime('21:00')">٢١:٠٠</button>
-                        <button type="button" class="cancel-btn" data-i18n="picker.cancel" onclick="closePickers()">إلغاء</button>
-                        <button type="button" class="done-btn" data-i18n="picker.done" onclick="closePickers()">تم</button>
-                      </div>
-                    </div>
-                    <div class="helper" id="start-hint"></div>
+                  <div class="has-icon"><i class="fa-solid fa-clock field-icon"></i>
+                    <input class="input" type="time" id="b-start" min="10:00" max="23:59" value="18:00" data-required="1" required onchange="refreshTimeDisplays(); refreshQuickChips(); refreshHoursHints();">
                   </div>
+                  <div class="helper" id="start-hint"></div>
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.end">وقت المغادرة <span class="req">*</span></label>
-                  <div class="picker-field">
-                    <button type="button" class="picker-trigger readonly" aria-label="Departure Time (automatic)">
-                      <i class="fa-solid fa-clock-rotate-left"></i>
-                      <span class="picker-main" id="b-end-display">12:00 AM</span>
-                      <span class="picker-sub" id="end-mini">00:00</span>
-                    </button>
-                    <input type="hidden" id="b-end" value="00:00" data-required="1">
-                    <div class="helper" id="end-hint"></div>
+                  <div class="has-icon"><i class="fa-solid fa-clock-rotate-left field-icon"></i>
+                    <input class="input" type="time" id="b-end" value="00:00" data-required="1" readonly>
                   </div>
+                  <div class="helper" id="end-hint"></div>
                 </div>
                 <div class="form-group">
                   <label data-i18n="field.guests">عدد الأفراد <span class="req">*</span></label>
