@@ -371,6 +371,23 @@ img { max-width: 100%; display: block; }
 .ticket-qr { text-align: center; padding: 14px 0; border-top: 1px dashed var(--border-2); }
 .ticket-qr #invite-guest-qr { display: inline-flex; justify-content: center; padding: 10px; background: #fff; border-radius: 12px; }
 .ticket-foot { font-size: .7rem; color: var(--muted); text-align: center; margin-top: 8px; }
+/* Guest Pass — شريط أسود + كارت إنجليزي ثابت (مستقل عن لغة التطبيق) */
+.gp-ticket { background:#f4f6f8; border-radius:14px; padding:0; overflow:hidden; color:#0f1f24; }
+.gp-ticket::before { display:none; }
+.gp-bar { background:#000; padding:8px 12px 7px; text-align:center; color:#fff; }
+.gp-bar .gp-logo { width:150px; height:auto; display:block; margin:0 auto 12px; }
+.gp-bar .gp-pass { font-size:.62rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; line-height:1.2; }
+.gp-bar .gp-gid { font-family:inherit; font-size:.62rem; font-weight:800; color:#b9c0c6; margin-left:6px; letter-spacing:0; }
+.gp-sheet { padding:14px 16px 16px; }
+.gp-card { background:#fff; border-radius:12px; padding:14px; box-shadow:0 10px 28px rgba(0,0,0,.1); direction:ltr; text-align:left; }
+.gp-row { display:flex; justify-content:space-between; gap:10px; font-size:.78rem; padding:6px 0; border-bottom:1px dashed #dbe4e8; line-height:1.6; }
+.gp-row:last-of-type { border-bottom:0; }
+.gp-row .k { color:#64748b; font-weight:700; white-space:nowrap; }
+.gp-row .v { direction:ltr; text-align:left; font-weight:700; color:#0f1f24; overflow-wrap:anywhere; }
+.gp-row .v.fee { color:#075e54; font-weight:900; }
+.gp-qr { text-align:center; margin-top:14px; padding-top:12px; border-top:2px solid #075e54; }
+.gp-qr #invite-guest-qr { display:inline-flex; justify-content:center; padding:8px; background:#fff; border:1px solid #dbe4e8; border-radius:8px; }
+.gp-hint { font-size:.72rem; color:#64748b; margin-top:8px; }
 .invite-hero { text-align: center; margin-bottom: 16px; }
 .invite-hero .icon { width: 56px; height: 56px; border-radius: 16px; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin: 0 auto 10px; }
 .invite-hero h3 { font-size: 1.15rem; font-weight: 800; }
@@ -6541,36 +6558,74 @@ async function submitGuestRegistration() {
   toast(currentLang === 'ar' ? 'تم إنشاء تذكرتك!' : 'Your ticket is ready!', 'success');
 }
 
+// تذكرة الضيف دايماً إنجليزي: المناسبة من نوع الحجز، والرسوم من سعر الباقة المتفق عليه
+const GUEST_TICKET_TYPES = {
+  'عيد ميلاد': 'Birthday',
+  'أوتنج': 'Outing',
+  'اجتماع': 'Meeting',
+  'حفل تخرج': 'Graduation',
+  'فطور جماعي': 'Group Breakfast',
+  'أخرى': 'Other'
+};
+function guestTicketTypeEn(value) {
+  const s = String(value || '').trim();
+  if (!s) return '—';
+  return GUEST_TICKET_TYPES[s] || s;
+}
+function guestTicketPackageEn(b) {
+  const pi = Number(b && b.packageIndex);
+  if (!Number.isInteger(pi) || pi < 0) return '—';
+  const zone = zones.find(z => z.id === b.zoneId);
+  const raw = (zone && zone.packageNames && zone.packageNames[pi]) || 'باقة ' + (pi + 1);
+  const canon = pkgCanonicalName(raw, pi);
+  const m = canon.match(/^باقة\s*([0-9٠-٩]+)$/);
+  if (m) return 'Package ' + (pkgNumber(m[1]) || pi + 1);
+  return /[A-Za-z]/.test(canon) ? canon : 'Package ' + (pi + 1);
+}
+
 function showGuestTicket(guest, data) {
-  const linkedBooking = bookings.find(b => b.id === guest.eventId);
-  const guestFee = linkedBooking ? (Number(linkedBooking.feePerPerson) || 0) : 0;
-  const zone = zones.find(z => z.id === (data.z || (linkedBooking || {}).zoneId)) || { name: '', nameEn: '' };
+  const d = data || {};
+  const linkedBooking = bookings.find(b => b.id === guest.eventId || b.id === d.e) || {};
+  const zone = zones.find(z => z.id === (d.z || linkedBooking.zoneId)) || { name: d.z || linkedBooking.zoneId || '', nameEn: d.z || linkedBooking.zoneId || '' };
+  const guestFee = Number(linkedBooking.feePerPerson) || 0;
+  const feeText = formatMoney(guestFee) + ' EGP';
+  const timeText = ((d.s || linkedBooking.start || '') + ' – ' + (d.en || linkedBooking.end || '')).trim() || '—';
+  const linkedId = linkedBooking.id || d.e || guest.eventId || '—';
+  const bookedBy = linkedBooking.name || d.n || guest.eventName || '—';
+  const occasion = guestTicketTypeEn(d.t || linkedBooking.type || guest.eventName);
+  const packageText = guestTicketPackageEn(linkedBooking);
+
   const container = document.getElementById('guest-ticket-content');
+  container.className = 'ticket gp-ticket';
   container.innerHTML = `
-    <div class="ticket-header">
-      <div class="tk-brand">Gatz. Hub</div>
-      <div class="tk-sub">${escapeHtml(t('guestticket.subtitle'))}</div>
-      <div class="tk-type">${escapeHtml([data.t || guest.eventName || 'Event', data.n].filter(Boolean).join(' · '))}</div>
+    <div class="gp-bar" dir="ltr">
+      <img class="gp-logo" src="gatz-word-text.png" alt="Gatz.">
+      <div class="gp-pass">Guest Pass <span class="gp-gid">${escapeHtml(guest.id)}</span></div>
     </div>
-    <div class="ticket-grid">
-      <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.name'))}</div><div class="v">${escapeHtml(guest.name)}</div></div>
-      <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.id'))}</div><div class="v num">${escapeHtml(guest.id)}</div></div>
-      <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.event'))}</div><div class="v">${escapeHtml(guest.eventName || '—')}</div></div>
-      <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.date'))}</div><div class="v num">${escapeHtml(data.d || '—')}</div></div>
-      <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.time'))}</div><div class="v num">${escapeHtml((data.s||'') + ' – ' + (data.en||''))}</div></div>
-      <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.fee'))}</div><div class="v num">${formatMoney(guestFee)} ${cur()}</div></div>
-      <div class="ticket-field"><div class="k">${escapeHtml(t('guestticket.zone'))}</div><div class="v">${escapeHtml(zoneName(zone))}</div></div>
-    </div>
-    <div class="ticket-qr">
-      <div id="invite-guest-qr"></div>
-      <div class="ticket-foot">${escapeHtml(t('guestticket.hint'))}</div>
+    <div class="gp-sheet">
+      <div class="gp-card" dir="ltr">
+        <div class="gp-row"><span class="k">Name</span><span class="v">${escapeHtml(guest.name)}</span></div>
+        <div class="gp-row"><span class="k">Guest ID</span><span class="v">${escapeHtml(guest.id)}</span></div>
+        <div class="gp-row"><span class="k">Linked Booking</span><span class="v">${escapeHtml(linkedId)}</span></div>
+        <div class="gp-row"><span class="k">Booked by</span><span class="v">${escapeHtml(bookedBy)}</span></div>
+        <div class="gp-row"><span class="k">Occasion</span><span class="v">${escapeHtml(occasion)}</span></div>
+        <div class="gp-row"><span class="k">Date</span><span class="v">${escapeHtml(d.d || linkedBooking.date || '—')}</span></div>
+        <div class="gp-row"><span class="k">Time</span><span class="v">${escapeHtml(timeText)}</span></div>
+        <div class="gp-row"><span class="k">Zone</span><span class="v">${escapeHtml(zoneNameEn(zone) || '—')}</span></div>
+        <div class="gp-row"><span class="k">Package</span><span class="v">${escapeHtml(packageText)}</span></div>
+        <div class="gp-row"><span class="k">Entry Fee</span><span class="v fee">${feeText}</span></div>
+        <div class="gp-qr">
+          <div id="invite-guest-qr"></div>
+          <div class="gp-hint">Show this code at the door</div>
+        </div>
+      </div>
     </div>
   `;
   const qrEl = document.getElementById('invite-guest-qr');
   qrEl.innerHTML = '';
   new QRCode(qrEl, { text: 'GST:' + guest.id, width: 180, height: 180 });
-  // دائماً بالإنجليزية
-  const msg = `🎫 My entry ticket — ${guest.eventName}\nName: ${guest.name}\nGuest ID: ${guest.id}\n📅 ${data.d||''} (${data.s||''}–${data.en||''})\nEntry fee: ${guestFee} ${cur()}\n\nShow the QR at the door.`;
+  // رسالة واتساب دايماً إنجليزي، ونفس بيانات الكارت
+  const msg = `🎫 Guest Pass — ${guest.id}\nName: ${guest.name}\nGuest ID: ${guest.id}\nLinked Booking: ${linkedId}\nDate: ${d.d || linkedBooking.date || ''}\nTime: ${timeText}\nEntry Fee: ${feeText}\n\nShow this QR at the door.`;
   document.getElementById('guest-ticket-wa-btn').href = `https://wa.me/${phoneForWa(guest.phone)}?text=${encodeURIComponent(msg)}`;
   closeModal('guest-register-modal');
   document.getElementById('guest-ticket-modal').classList.add('open');
@@ -6721,7 +6776,7 @@ function showGuestTicketById(id) {
   const g = guests.find(x => x.id === id);
   if (!g) return;
   const bk = bookings.find(b => b.id === g.eventId) || {};
-  showGuestTicket(g, { t: bk.type, d: bk.date, s: bk.start, en: bk.end, z: bk.zoneId });
+  showGuestTicket(g, { e: bk.id, n: bk.name, t: bk.type, d: bk.date, s: bk.start, en: bk.end, z: bk.zoneId });
 }
 
 async function deleteGuest(id) {

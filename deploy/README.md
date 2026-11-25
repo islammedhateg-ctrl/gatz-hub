@@ -26,6 +26,7 @@
 | `index.html` | الصفحة الرئيسية (التطبيق) |
 | `restaurant-booking-v2.html` | التطبيق الكامل |
 | `gatz-word.png` | شعار `Gatz.` (السايد بار / شاشة الدخول) |
+| `gatz-word-text.png` | كلمة `Gatz.` مقطوعة من اللوجو (تذكرة الضيف) |
 | `gatz-brand-icon.png` | الشعار الكامل (أيقونة الموبايل / PWA) |
 | `gatz-brand.png` | الصورة الأصلية |
 | `manifest.json` | إعدادات PWA |
