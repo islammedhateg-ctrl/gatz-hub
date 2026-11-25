@@ -6870,12 +6870,29 @@ const QR_SHARE_SIZE = 180;
 function buildCustomerWaMessage(b) {
   const zone = zones.find(z => z.id === b.zoneId) || { name: b.zoneId, nameEn: b.zoneId };
   const ticket = `╔═══════════════════════════╗\n     🎫  Gatz. Hub Reservation\n     Booking Confirmation\n╚═══════════════════════════╝\n\n👤 Customer: ${b.name}\n🔢 Booking ID: ${b.id}\n📅 Date: ${b.date}\n⏰ Time: ${b.start} – ${b.end}\n📍 Zone: ${zoneNameEn(zone)}\n👥 Guests: ${b.guests}\n💰 Deposit: ${formatMoney(b.deposit)} EGP`;
-  const invite = `\n\n────────────────────\n👥 Invite friends:\n${buildInviteLink(b)}\n\nThank you for choosing Gatz. Hub 🌟`;
+  const invite = `\n\n────────────────────\n👥 Invite friends to get their own entry QR:\n${buildInviteLink(b)}\n\nThank you for choosing Gatz. Hub 🌟`;
   return ticket + invite;
 }
 
+// بيانات التأكيد اللي بتتحط تحت الـ QR في صورة المشاركة (بالأيقونات)
+function qrTicketLines(b) {
+  const zone = zones.find(z => z.id === b.zoneId) || { name: b.zoneId, nameEn: b.zoneId, packageNames: [] };
+  const pi = Number(b.packageIndex);
+  const rawPkg = Number.isInteger(pi) && pi >= 0 && zone.packageNames && zone.packageNames[pi]
+    ? zone.packageNames[pi] : (Number.isInteger(pi) && pi >= 0 ? 'باقة ' + (pi + 1) : '');
+  return [
+    '👤 ' + (b.name || '—'),
+    '🔢 ' + (b.id || '—'),
+    '📅 ' + (b.date || '—'),
+    '⏰ ' + ((b.start || '') + '–' + (b.end || '')),
+    '📍 ' + zoneNameEn(zone),
+    '👥 ' + (Number(b.guests) || 0) + ' guests',
+    '💰 ' + formatMoney(b.deposit) + ' EGP',
+    '📦 ' + (rawPkg ? pkgDisplayName(rawPkg, pi) : '—')
+  ];
+}
 // توليد QR في حاوية مؤقتة (يعمل حتى لو لم تُفتح نافذة التذكرة)
-function makeQrDataUrl(text, size, caption) {
+function makeQrDataUrl(text, size, opts) {
   const s = Number(size) || QR_SHARE_SIZE;
   const tmp = document.createElement('div');
   tmp.style.cssText = 'position:absolute;left:-99999px;top:-99999px;width:1px;height:1px;overflow:hidden;';
@@ -6887,20 +6904,43 @@ function makeQrDataUrl(text, size, caption) {
       const img = tmp.querySelector('img');
       return img && img.src && img.src.indexOf('data:image') === 0 ? img.src : '';
     }
-    const lines = caption ? String(caption).split('\n') : [];
+    const caption = (opts && opts.caption) ? String(opts.caption) : '';
+    const lines = (opts && Array.isArray(opts.lines)) ? opts.lines : [];
+    const frame = 21, pad = 8, lineH = 13;
     const out = document.createElement('canvas');
-    out.width = s;
-    out.height = s + (lines.length ? 8 + lines.length * 15 : 0);
+    out.width = s + 2 * (frame + pad);
+    out.height = frame + pad + s + (caption ? 16 : 0) + (lines.length ? 6 + lines.length * lineH : 0) + pad + frame;
     const ctx = out.getContext('2d');
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, out.width, out.height);
-    ctx.drawImage(src, 0, 0, s, s);
-    if (lines.length) {
+    const round = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    };
+    round(0, 0, out.width, out.height, 20);
+    ctx.fillStyle = '#075e54'; ctx.fill();
+    round(frame, frame, out.width - 2 * frame, out.height - 2 * frame, 12);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.drawImage(src, frame + pad, frame + pad, s, s);
+    let y = frame + pad + s;
+    if (caption) {
+      y += 10;
       ctx.fillStyle = '#111';
-      ctx.font = '700 12px Arial, sans-serif';
+      ctx.font = '700 9px Arial, sans-serif';
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      lines.forEach((line, i) => ctx.fillText(line, s / 2, s + 14 + i * 15));
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(caption, out.width / 2, y);
+      y += 4;
+    }
+    if (lines.length) {
+      ctx.fillStyle = '#0b3d34';
+      ctx.font = '700 9px Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      lines.forEach(line => { y += lineH; ctx.fillText(line, frame + pad + 1, y); });
     }
     return out.toDataURL('image/png');
   } catch (e) {
@@ -6913,7 +6953,10 @@ function makeQrDataUrl(text, size, caption) {
 function qrImageDataUrl(booking) {
   // دايماً صورة مشاركة صغيرة — حتى لو نافذة التذكرة مفتوحة
   const b = booking || bookings.find(x => x.id === currentQrBookingId);
-  return b ? makeQrDataUrl(b.id, QR_SHARE_SIZE, '🎯 Show the QR code\nat the entrance') : '';
+  return b ? makeQrDataUrl(b.id, QR_SHARE_SIZE, {
+    caption: 'Show the QR code at the entrance',
+    lines: qrTicketLines(b)
+  }) : '';
 }
 function dataUrlToFile(dataUrl, filename) {
   const parts = dataUrl.split(',');
