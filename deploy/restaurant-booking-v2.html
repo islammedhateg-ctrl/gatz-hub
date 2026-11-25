@@ -6895,9 +6895,9 @@ function qrTicketLines(b) {
     '📦 ' + (rawPkg ? pkgEn : '—')
   ];
 }
-// نص مشاركة الصورة: لينك الدعوة فقط — بيانات الحجز موجودة جوه الصورة
+// نص مشاركة الصورة: اللينك لوحده يظهر تحت الكارت — بيانات الحجز جوه الصورة
 function buildCustomerShareText(b) {
-  return 'Invite friends to get their own entry QR:\n' + buildInviteLink(b);
+  return buildInviteLink(b);
 }
 // توليد QR في حاوية مؤقتة (يعمل حتى لو لم تُفتح نافذة التذكرة)
 function makeQrDataUrl(text, size, opts) {
