@@ -819,6 +819,25 @@ select.input option:checked { background: var(--primary-soft); color: var(--prim
   color: var(--muted); font-size: .95rem; pointer-events: none; transition: color var(--transition);
 }
 .has-icon:focus-within > i.field-icon { color: var(--primary); }
+/* عدد الأفراد: زرّان +/− صغيران داخل الحقل */
+#b-guests { padding-inline-end: 72px; -moz-appearance: textfield; }
+#b-guests::-webkit-inner-spin-button,
+#b-guests::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.guest-stepper {
+  position: absolute; inset-inline-end: 8px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; gap: 3px; z-index: 2;
+}
+.guest-stepper button {
+  width: 26px; height: 26px; padding: 0; display: inline-flex;
+  align-items: center; justify-content: center;
+  border: 1px solid var(--border-2); border-radius: 7px;
+  background: var(--surface-2); color: var(--primary);
+  font-size: .72rem; font-weight: 800; line-height: 1; cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+  -webkit-tap-highlight-color: transparent;
+}
+.guest-stepper button:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+.guest-stepper button:active { transform: scale(.94); }
 .input.error { border-color: var(--danger); }
 /* منتقي التاريخ والوقت — تصميم احترافي */
 .picker-field { position: relative; }
@@ -2040,7 +2059,11 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 <div class="form-group">
                   <label data-i18n="field.guests">عدد الأفراد <span class="req">*</span></label>
                   <div class="has-icon"><i class="fa-solid fa-users field-icon"></i>
-                    <input class="input" type="number" id="b-guests" min="1" value="10" required onchange="checkZoneCapacity(); syncDepositField(); updateFees();" oninput="checkZoneCapacity(); syncDepositField(); updateFees();">
+                    <input class="input" type="number" id="b-guests" min="1" value="10" required onfocus="this.select()" onchange="checkZoneCapacity(); syncDepositField(); updateFees();" oninput="checkZoneCapacity(); syncDepositField(); updateFees();">
+                    <span class="guest-stepper">
+                      <button type="button" onclick="stepGuests(-1)" onmousedown="event.preventDefault()" title="−" aria-label="Less guests"><i class="fa-solid fa-minus"></i></button>
+                      <button type="button" onclick="stepGuests(1)" onmousedown="event.preventDefault()" title="+" aria-label="More guests"><i class="fa-solid fa-plus"></i></button>
+                    </span>
                   </div>
                   <div class="helper" id="capacity-warning"></div>
                 </div>
@@ -6106,6 +6129,18 @@ function checkZoneCapacity() {
     warn.textContent = '';
     warn.classList.remove('error');
   }
+}
+// زرّان +/− داخل حقل عدد الأفراد — يحدّثوا الحسابات زي الكتابة بالظبط
+function stepGuests(delta) {
+  const el = document.getElementById('b-guests');
+  if (!el) return;
+  const cur = Number(el.value);
+  const base = Number.isFinite(cur) && cur > 0 ? cur : 1;
+  el.value = String(Math.max(1, base + delta));
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+  el.focus();
+  try { el.select(); } catch (e) {}
 }
 
 /* ============================================================
