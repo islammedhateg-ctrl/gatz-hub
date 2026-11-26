@@ -3742,7 +3742,7 @@ const I18N = {
 
 let currentLang = localStorage.getItem('rest_lang') || 'ar';
 let currentTheme = localStorage.getItem('rest_theme') || 'light';
-let currentRole = localStorage.getItem('rest_role') || 'admin';
+let currentRole = localStorage.getItem('rest_role') || 'door';
 let users = JSON.parse(localStorage.getItem('rest_users')) || [];
 let currentUser = JSON.parse(sessionStorage.getItem('rest_session')) || null;
 
@@ -4259,7 +4259,8 @@ async function submitAuth() {
     try {
       const { profile } = await cloudSignIn(email, password);
       if (profile.active === false) { showAuthError(t('auth.errInactive')); return; }
-      await seedPushSession(email, password); // refresh token مستقل — الـ Logout ما يبطلوش
+      const pushReady = await seedPushSession(email, password, profile.id); // refresh token مستقل
+      if (!pushReady) toast(currentLang === 'ar' ? 'الإشعارات هتحتاج دخول تاني' : 'Notifications need another sign-in', 'warning', 5000);
       currentUser = {
         id: profile.id, username, name: profile.full_name || username,
         role: profile.role, active: profile.active
@@ -4313,13 +4314,20 @@ async function submitAuth() {
 
 async function doLogout() {
   if (CLOUD.enabled && CLOUD.client) {
+    // flush أي تعديل في الانتظار قبل ما نقفل المزامنة
+    if (CLOUD.pushTimer) { clearTimeout(CLOUD.pushTimer); CLOUD.pushTimer = null; }
+    if (CLOUD.canPush && ['admin', 'staff'].includes(currentRole)) { try { await cloudPush(); } catch (e) {} }
     // local فقط: يمسح جلسة الدخول من الجهاز من غير ما يبطل الـ refresh token بتاع الإشعارات
     try { await CLOUD.client.auth.signOut({ scope: 'local' }); } catch (e) { /* تجاهل */ }
     if (CLOUD.channel) { CLOUD.client.removeChannel(CLOUD.channel); CLOUD.channel = null; }
     CLOUD.canPush = false;
+    // إعادة ضغط حالة الإشعارات المحلية عشان يوزر جديد ما ياخدش إشعارات قديمة
+    CLOUD.loadedOnce = false; CLOUD.prevBookings = null; CLOUD.prevGuests = null;
+    CLOUD.localNotify = {}; CLOUD.warned = false; CLOUD.loading = false;
   }
   currentUser = null;
   sessionStorage.removeItem('rest_session');
+  localStorage.removeItem('rest_role');
   currentRole = 'door';
   applyAuthState();
   setRole('door');
@@ -4666,9 +4674,16 @@ window.onload = () => {
         try { cloudSession = !!(await cloudRestore()); } catch (e) { cloudWarn(e); }
       }
       if (!cloudSession && currentUser) {
-        const fresh = users.find(u => u.id === currentUser.id && u.active);
-        if (fresh) { currentUser = fresh; setRole(fresh.role); }
-        else { currentUser = null; sessionStorage.removeItem('rest_session'); }
+        // وضع السحابة: الجلسة الغير صالحة ما تتحولش لحساب تجريبي قديم
+        currentUser = null;
+        sessionStorage.removeItem('rest_session');
+        localStorage.removeItem('rest_role');
+        currentRole = 'door';
+        setRole('door');
+      }
+      if (CLOUD.enabled && !cloudSession && !isInvite) {
+        document.getElementById('auth-modal').classList.add('open');
+        switchAuthTab('login');
       }
       // حدّث لغة الجهاز في الاشتراك المخزّن بعد ما الجلسة اتاستعادت
       try { await syncPushLang(pushSubscription); } catch (e) {}
@@ -8779,31 +8794,48 @@ function getPushClient() {
   return pushClient;
 }
 // login مستقل بنفس البيانات: refresh token خاص بالإشعارات، ما يتأثرش بـ logout الدخول
-async function seedPushSession(email, password) {
+async function seedPushSession(email, password, expectedUserId) {
   const pc = getPushClient();
   if (!pc || !email || !password) return false;
+  // امسح أي جلسة قديمة قبل ما نزرع واحدة جديدة (ممكن تكون ليوزر سابق)
+  try { await pc.auth.signOut({ scope: 'local' }); } catch (e) {}
   try {
     const { data, error } = await pc.auth.signInWithPassword({ email, password });
-    return !error && !!data.session;
+    if (error || !data.session) return false;
+    if (expectedUserId && data.user && data.user.id !== expectedUserId) {
+      try { await pc.auth.signOut({ scope: 'local' }); } catch (e) {}
+      return false;
+    }
+    return true;
   } catch (e) { return false; }
 }
 async function pushAccessToken() {
   const pc = getPushClient();
   if (!pc) return null;
-  // تحقق من التوكن قبل الإرسال — getSession لوحده ممكن يرجّع توكن ملغي
-  try {
-    const { data, error } = await pc.auth.getUser();
-    if (!error && data.user) {
-      const s = (await pc.auth.getSession()).data.session;
-      if (s) return s.access_token;
-    }
-  } catch (e) {}
-  // توكن قديم/منتهي: جرّب تجديده، ولو فشل امسحه عشان ما نبعتش بيه تاني
+  let s = null;
+  try { s = (await pc.auth.getSession()).data.session; } catch (e) {}
+  // validating the exact token we will send — getSession لوحده ممكن يرجّع توكن ملغي
+  if (s && s.access_token) {
+    try {
+      const { error } = await pc.auth.getUser(s.access_token);
+      if (!error) return s.access_token;
+    } catch (e) {}
+  }
   try {
     const { data, error } = await pc.auth.refreshSession();
-    if (!error && data.session) return data.session.access_token;
+    if (!error && data.session && data.session.access_token) {
+      const t = data.session.access_token;
+      const v = await pc.auth.getUser(t);
+      if (!v.error) return t;
+    }
+    // امسح الجلسة بس لو الـ refresh token نفسه ميت — مش لو النت مؤقت
+    if (error) {
+      const code = String(error.code || error.message || error).toLowerCase();
+      if (/refresh_token_not_found|refresh_token_already_used|invalid_refresh_token|session_expired/.test(code)) {
+        try { await pc.auth.signOut({ scope: 'local' }); } catch (e) {}
+      }
+    }
   } catch (e) {}
-  try { await pc.auth.signOut({ scope: 'local' }); } catch (e) {}
   return null;
 }
 
@@ -9002,44 +9034,22 @@ function roleFromEmail(email) {
 async function cloudSignIn(email, password) {
   const { data, error } = await CLOUD.client.auth.signInWithPassword({ email, password });
   if (error) throw error;
-  try {
-    const { data: prof, error: pe } = await CLOUD.client.from('profiles').select('*').eq('id', data.user.id).single();
-    if (pe) throw pe;
-    return { user: data.user, profile: prof };
-  } catch (e) {
-    // حل احتياطي: الدور من الإيميل لو الجدول لسه مفيهوش صلاحية قراءة
-    return {
-      user: data.user,
-      profile: {
-        id: data.user.id,
-        role: roleFromEmail(data.user.email),
-        full_name: (data.user.email || '').split('@')[0],
-        active: true
-      }
-    };
-  }
+  // الدور من الـ profiles فقط — ما نستنتجش صلاحية من الإيميل
+  const { data: prof, error: pe } = await CLOUD.client.from('profiles').select('*').eq('id', data.user.id).single();
+  if (pe || !prof) throw new Error(pe ? pe.message : (currentLang === 'ar' ? 'ملف المستخدم غير موجود' : 'Profile not found'));
+  if (prof.active === false) throw new Error(currentLang === 'ar' ? 'الحساب غير مفعّل' : 'Account inactive');
+  return { user: data.user, profile: prof };
 }
 async function cloudRestore() {
   if (!CLOUD.enabled || !CLOUD.client) return null;
-  const { data } = await CLOUD.client.auth.getSession();
-  if (!data || !data.session) return null;
-  let prof;
-  try {
-    const res = await CLOUD.client.from('profiles').select('*').eq('id', data.session.user.id).single();
-    prof = res.data;
-  } catch (e) {
-    prof = null;
-  }
-  if (!prof) {
-    prof = {
-      id: data.session.user.id, role: roleFromEmail(data.session.user.email),
-      full_name: (data.session.user.email || '').split('@')[0], active: true
-    };
-  }
-  if (prof.active === false) return null;
+  // getUser بيتحقق من التوكن عند السيرفر — getSession لوحده مش كفاية
+  const { data: auth, error: authErr } = await CLOUD.client.auth.getUser();
+  if (authErr || !auth.user) return null;
+  const { data: prof, error: pe } = await CLOUD.client.from('profiles').select('*').eq('id', auth.user.id).single();
+  if (pe || !prof || prof.active === false) return null;
   currentUser = {
-    id: prof.id, username: sStr(prof.full_name).split(' ')[0] || (data.session.user.email || '').split('@')[0],
-    name: prof.full_name || data.session.user.email, role: prof.role, active: prof.active
+    id: prof.id, username: sStr(prof.full_name).split(' ')[0] || (auth.user.email || '').split('@')[0],
+    name: prof.full_name || auth.user.email, role: prof.role, active: prof.active
   };
   sessionStorage.setItem('rest_session', JSON.stringify(currentUser));
   currentRole = prof.role;
