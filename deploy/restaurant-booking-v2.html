@@ -5107,9 +5107,9 @@ function buildBookingsTable(list, compact = false) {
         </td>
         <td>
           <div style="display:flex; gap:4px;">
-            <button class="btn btn-ghost btn-sm" onclick="openBookingDetails('${jsSafe(b.id)}')" title="Details"><i class="fa-solid fa-eye"></i></button>
+            <button class="btn btn-ghost btn-sm" onclick="openBookingDetails('${jsSafe(b.id)}')" title="Details"><i class="fa-solid fa-eye" style="color:var(--info);"></i></button>
             ${isBookingExpired(b) ? '' : `<button class="btn btn-ghost btn-sm" onclick="editBooking('${jsSafe(b.id)}')" title="Edit"><i class="fa-solid fa-pen-to-square" style="color:var(--info);"></i></button>`}
-            <button class="btn btn-ghost btn-sm" onclick="openQrModal('${jsSafe(b.id)}')" title="QR"><i class="fa-solid fa-qrcode"></i></button>
+            <button class="btn btn-ghost btn-sm" onclick="openQrModal('${jsSafe(b.id)}')" title="QR"><i class="fa-solid fa-qrcode" style="color:var(--primary);"></i></button>
             ${isPendingTransfer(b) ? `<button class="btn btn-success btn-sm" onclick="verifyTransfer('${jsSafe(b.id)}')" title="${t('finance.verifiedOnly')}"><i class="fa-solid fa-check"></i></button>` : ''}
             <!-- إلغاء/استعادة الحجز (يحافظ على السجل) — ممنوع بعد انتهاء التاريخ -->
             ${isBookingExpired(b) ? '' : (!b.cancelled ? `<button class="btn btn-ghost btn-sm" onclick="cancelBooking('${jsSafe(b.id)}')" title="Cancel"><i class="fa-solid fa-ban" style="color:var(--warning);"></i></button>` : `<button class="btn btn-ghost btn-sm" onclick="restoreBooking('${jsSafe(b.id)}')" title="Restore"><i class="fa-solid fa-rotate-left" style="color:var(--success);"></i></button>`)}
