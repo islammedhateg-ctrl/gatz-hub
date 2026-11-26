@@ -5484,7 +5484,7 @@ async function saveZoneEdit() {
     const { error } = await CLOUD.client.from('zones').upsert(zones.map(zToDb));
     cloudFailed = !!error;
   }
-  CLOUD.internalSave = true; saveData(); CLOUD.internalSave = false;
+  CLOUD.internalSave = true; try { saveData(); } finally { CLOUD.internalSave = false; }
   closeModal('zone-edit-modal');
   renderZones(); renderZoneCards(); renderDashboard();
   if (cloudFailed) {
@@ -6565,7 +6565,7 @@ async function submitGuestRegistration() {
   }
 
   guests.unshift(guest);
-  CLOUD.internalSave = true; saveData(); CLOUD.internalSave = false;
+  CLOUD.internalSave = true; try { saveData(); } finally { CLOUD.internalSave = false; }
   renderGuests();
   showGuestTicket(guest, data);
   toast(currentLang === 'ar' ? 'تم إنشاء تذكرتك!' : 'Your ticket is ready!', 'success');
@@ -7345,21 +7345,24 @@ function restoreBooking(id) {
   toast(t('booking.restored'), 'success');
 }
 
-function deleteBooking(id) {
+async function deleteBooking(id) {
   const b = bookings.find(x => x.id === id);
-  confirmAction(t('confirm.deleteTitle'), t('confirm.deleteMsg')).then(ok => {
-    if (ok) {
-      bookings = bookings.filter(x => x.id !== id);
-      saveData();
-      if (b) {
-        addNotification('cancelled', t('notif.cancelled'), `${b.name} — ${id}`, id);
-        sendBookingPush('cancelled', bookingPushData(b));
-      }
-      renderAll();
-      renderBookings();
-      toast(t('toast.deleted'), 'success');
-    }
-  });
+  const ok = await confirmAction(t('confirm.deleteTitle'), t('confirm.deleteMsg'));
+  if (!ok) return;
+  // الحذف لازم يوصل للسحابة وإلا الحجز يرجع في التحميل الجاي
+  if (CLOUD.enabled && CLOUD.client && CLOUD.canPush && ['admin', 'staff'].includes(currentRole)) {
+    const { error } = await CLOUD.client.from('bookings').delete().eq('id', id);
+    if (error) { cloudWarn(error.message); return; }
+  }
+  bookings = bookings.filter(x => x.id !== id);
+  saveData();
+  if (b) {
+    addNotification('cancelled', t('notif.cancelled'), `${b.name} — ${id}`, id);
+    sendBookingPush('cancelled', bookingPushData(b));
+  }
+  renderAll();
+  renderBookings();
+  toast(t('toast.deleted'), 'success');
 }
 
 /* ============================================================
@@ -8686,6 +8689,11 @@ function exportCSV() {
 // دعم تغيير الـ hash دون إعادة تحميل (مثلاً فتح رابط دعوة في نفس التبويب)
 window.addEventListener('hashchange', () => { handleInviteHash(); });
 window.addEventListener('beforeunload', (e) => {
+  // آخر فرصة لتفريغ التعديل المؤجل قبل ما الصفحة تقفل
+  if (CLOUD.enabled && CLOUD.pushTimer) {
+    clearTimeout(CLOUD.pushTimer); CLOUD.pushTimer = null;
+    try { cloudPush(); } catch (err) {}
+  }
   if (formDirty) {
     e.preventDefault();
     e.returnValue = ''; // رسالة المتصفح القياسية
@@ -8924,18 +8932,36 @@ function zToDb(z) {
   };
 }
 
+// Supabase/PostgREST بيقصّ النتيجة لصفحة — نقرأ كل الصفوف قبل ما نستبدل الحالة المحلية
+async function cloudSelectAll(table) {
+  const all = [];
+  for (let from = 0; ; from += 999) {
+    const { data, error } = await CLOUD.client.from(table).select('*').range(from, from + 998);
+    if (error) return { data: all, error };
+    const rows = data || [];
+    all.push(...rows);
+    if (rows.length < 999) break;
+  }
+  return { data: all, error: null };
+}
+
 async function cloudLoad() {
   if (!CLOUD.enabled || !CLOUD.client || CLOUD.loading) return false;
   CLOUD.loading = true;
   CLOUD.warned = false;
   try {
     const [br, gr, zr] = await Promise.all([
-      CLOUD.client.from('bookings').select('*'),
-      CLOUD.client.from('guests').select('*'),
-      CLOUD.client.from('zones').select('*')
+      cloudSelectAll('bookings'), cloudSelectAll('guests'), cloudSelectAll('zones')
     ]);
-    if (br.error || gr.error || zr.error) {
-      cloudWarn((br.error || gr.error || zr.error).message);
+    const err = br.error || gr.error || zr.error;
+    if (err) { cloudWarn(err.message); return false; }
+    // لو الـ RLS مخفي الصفوف ما نمسحش البيانات المحلية
+    if (Array.isArray(br.data) && br.data.length === 0 && bookings.length > 0) {
+      cloudWarn(currentLang === 'ar' ? 'السحابة رجّعت صفر حجوزات — المحلي اتخفوظ' : 'Cloud returned no bookings — local data kept');
+      return false;
+    }
+    if (Array.isArray(gr.data) && gr.data.length === 0 && guests.length > 0) {
+      cloudWarn(currentLang === 'ar' ? 'السحابة رجّعت صفر ضيوف — المحلي اتخفوظ' : 'Cloud returned no guests — local data kept');
       return false;
     }
     // كشف التغييرات قبل الاستبداد لإطلاق إشعارات على الأجهزة التانية
@@ -8968,10 +8994,11 @@ async function cloudLoad() {
     else if (zr.data && zr.data.length === 0 && ['admin', 'staff'].includes(currentRole)
       && localStorage.getItem('rest_zones_v2') === null) {
       // نزرع الافتراضي أول مرة بس — لو الأدمين حذف كل المناطق ما نرجّعهمش
-      await CLOUD.client.from('zones').upsert(zones.map(zToDb));
+      const zs = await CLOUD.client.from('zones').upsert(zones.map(zToDb));
+      if (zs.error) cloudWarn(zs.error.message);
     }
     syncSharedPackagesFromZones();
-    CLOUD.internalSave = true; saveData(); CLOUD.internalSave = false;
+    CLOUD.internalSave = true; try { saveData(); } finally { CLOUD.internalSave = false; }
     renderAll();
     if (typeof updateQuickDoorSelect === 'function') updateQuickDoorSelect();
     CLOUD.canPush = true;
@@ -8996,10 +9023,15 @@ function enforceBkPrefix(el) {
 // منع إشعار مكرر على الجهاز اللي عمل التغيير بنفسه
 function cloudNotifyLocal(type, title, body, key) {
   const now = Date.now();
-  if (CLOUD.localNotify[key] && now - CLOUD.localNotify[key] < 8000) return;
+  const dk = String(key || '') + '|' + type;
+  if (CLOUD.localNotify[dk] && now - CLOUD.localNotify[dk] < 8000) return;
+  CLOUD.localNotify[dk] = now;
   if (typeof addNotification === 'function') addNotification(type, title, body, key);
 }
-function markLocalNotify(key) { CLOUD.localNotify[key] = Date.now(); }
+function markLocalNotify(key) {
+  const k = String(key || '');
+  ['new', 'updated', 'cancelled', 'restored'].forEach(t => { CLOUD.localNotify[k + '|' + t] = Date.now(); });
+}
 
 function cloudSchedulePush() {
   if (!CLOUD.enabled || !CLOUD.canPush || CLOUD.internalSave) return;
@@ -9010,19 +9042,29 @@ async function cloudPush() {
   if (!CLOUD.enabled || !CLOUD.client || !CLOUD.canPush) return;
   if (!['admin', 'staff'].includes(currentRole)) return; // door يحدّث حقول محددة فقط (انظر handleScannedCode)
   try {
-    await CLOUD.client.from('bookings').upsert(bookings.map(bToDb));
-    await CLOUD.client.from('zones').upsert(zones.map(zToDb));
+    const br = await CLOUD.client.from('bookings').upsert(bookings.map(bToDb));
+    if (br.error) throw br.error;
+    const zr = await CLOUD.client.from('zones').upsert(zones.map(zToDb));
+    if (zr.error) throw zr.error;
     // الضيوف يُدارون عبر register_guest() + تحديث الدخول فقط (لا inser مباشر)
-  } catch (e) { cloudWarn(); }
+  } catch (e) { cloudWarn(e && e.message ? e.message : e); }
 }
 function cloudSubscribe() {
   if (!CLOUD.enabled || !CLOUD.client || CLOUD.channel) return;
   try {
-    CLOUD.channel = CLOUD.client.channel('gatz-hub')
+    const ch = CLOUD.client.channel('gatz-hub')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => cloudLoad())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'guests' }, () => cloudLoad())
-      .subscribe();
-  } catch (e) { /* تجاهل */ }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'zones' }, () => cloudLoad());
+    CLOUD.channel = ch;
+    ch.subscribe(status => {
+      if (status === 'SUBSCRIBED') return;
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        if (CLOUD.channel === ch) CLOUD.channel = null;
+        setTimeout(() => { if (CLOUD.enabled && currentUser) cloudSubscribe(); }, 3000);
+      }
+    });
+  } catch (e) { CLOUD.channel = null; }
 }
 
 function roleFromEmail(email) {
