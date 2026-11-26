@@ -1,7 +1,7 @@
-/* Gatz. Hub Service Worker — HTML: network-first for fresh/hard reload, cache-first otherwise */
+/* Gatz. Hub Service Worker — HTML: network-first on every reload, cache only as offline fallback */
 
-const STATIC_CACHE = 'gatz-hub-static-v20';
-const RUNTIME_CACHE = 'gatz-hub-runtime-v20';
+const STATIC_CACHE = 'gatz-hub-static-v21';
+const RUNTIME_CACHE = 'gatz-hub-runtime-v21';
 const PRECACHE = ['./restaurant-booking-v2', './restaurant-booking-v2.html', './html5-qrcode.min.js', './gatz-word.png', './gatz-word-text.png', './gatz-brand-icon.png', './gatz-badge.png', './manifest.json', './force-update.html'];
 const CRITICAL = ['./restaurant-booking-v2', './restaurant-booking-v2.html', './html5-qrcode.min.js', './manifest.json'];
 let precacheOk = false;
@@ -147,28 +147,23 @@ self.addEventListener('fetch', (e) => {
     const hardReload = req.cache === 'reload' || /no-cache|no-store|max-age=0/.test(cc) || /no-cache/.test(pragma);
     const mustBeFresh = target.pathname.endsWith('force-update.html') || target.searchParams.has('fresh') || hardReload;
     const fallback = () => htmlFromCache(targetKey);
-    const freshInit = hardReload ? { cache: 'reload' } : {};
-    const freshFetch = fetch(new Request(targetKey, freshInit))
+    const getFresh = (init) => fetch(new Request(targetKey, init || {}))
       .then(async res => {
         if (!res || !res.ok) throw new Error('HTTP ' + (res && res.status));
         await storeHtml(res, target);
         return res;
-      })
-      .catch(fallback);
+      });
 
+    // كل ريلود/ريفرش يجيب أحدث HTML من الشبكة — الكاش للطوارئ لما النت يفشل بس
+    const fresh = getFresh(hardReload ? { cache: 'reload' } : {}).catch(() => null);
     if (mustBeFresh) {
-      e.respondWith(freshFetch);
+      e.respondWith(fresh.then(res => res || fallback()));
       return;
     }
-    const background = fetch(targetKey)
-      .then(async res => {
-        if (!res || !res.ok) throw new Error('HTTP ' + (res && res.status));
-        await storeHtml(res, target);
-        return res;
-      })
-      .catch(() => {});
-    e.waitUntil(background);
-    e.respondWith(htmlFromCache(targetKey).then(cached => cached || background.then(() => htmlFromCache(targetKey))));
+    // مهلة قصيرة: لو الشبكة بطيئة نعرض الكاش فوراً، والجديدة تتحفظ في الخلفية للمرة الجاية
+    const quickNet = new Promise(resolve => setTimeout(() => resolve(null), 1800));
+    e.respondWith(Promise.race([fresh, quickNet]).then(res => res || fallback()));
+    e.waitUntil(fresh);
     return;
   }
 
