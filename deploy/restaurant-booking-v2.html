@@ -2725,6 +2725,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
         <i class="fa-brands fa-whatsapp"></i> <i class="fa-solid fa-image"></i> <span data-i18n="qr.sendTicket">إرسال التذكرة</span>
       </button>
       <button class="btn btn-outline btn-sm" onclick="downloadQR()"><i class="fa-solid fa-download"></i> <span data-i18n="qr.download">تنزيل QR</span></button>
+      <button class="btn btn-outline btn-sm" onclick="openInviteModal()"><i class="fa-solid fa-user-plus"></i> <span data-i18n="qr.invite">دعوة الأصدقاء</span></button>
       <button class="btn btn-outline btn-sm" onclick="printQR()"><i class="fa-solid fa-print"></i> <span data-i18n="qr.print">طباعة</span></button>
       <button class="btn btn-outline btn-sm" onclick="closeModal('qr-modal')" data-i18n="action.close">إغلاق</button>
     </div>
@@ -3238,6 +3239,7 @@ const I18N = {
     'qr.hint': 'أبرز هذا الكود لموظف البوابة',
     'qr.whatsapp': 'إرسال واتساب',
     'qr.print': 'طباعة',
+    'qr.invite': 'دعوة الأصدقاء',
     'empty.bookings': 'لا توجد حجوزات',
     'empty.bookingsHint': 'أنشئ أول حجز للبدء',
     'empty.finance': 'لا توجد عمليات مالية',
@@ -3644,6 +3646,7 @@ const I18N = {
     'qr.hint': 'Show this code to door staff',
     'qr.whatsapp': 'Send WhatsApp',
     'qr.print': 'Print',
+    'qr.invite': 'Invite friends',
     'empty.bookings': 'No bookings yet',
     'empty.bookingsHint': 'Create your first booking to get started',
     'empty.finance': 'No financial operations',
@@ -4681,6 +4684,8 @@ window.onload = () => {
       if (CLOUD.enabled) {
         try { cloudSession = !!(await cloudRestore()); } catch (e) { cloudWarn(e); }
       }
+      // رابط الدعوة بيحتاج بيانات الحجز من السحابة — نعيد قراءته بعد الاستعادة
+      if (isInvite && !currentInviteData) { try { handleInviteHash(); } catch (e) {} }
       if (!cloudSession && currentUser) {
         // وضع السحابة: الجلسة الغير صالحة ما تتحولش لحساب تجريبي قديم
         currentUser = null;
@@ -5148,7 +5153,8 @@ function getFilteredBookings() {
   const filterZone = document.getElementById('filter-zone')?.value;
   const filterStatus = document.getElementById('filter-status')?.value;
   const search = (document.getElementById('bookings-search')?.value || '').toLowerCase().trim();
-  const phoneSearch = normalizeEgyptPhone(search);
+  const phoneLike = /^[\d\s+\-()]+$/.test(search) && search.replace(/\D/g, '').length >= 3;
+  const phoneSearch = phoneLike ? normalizeEgyptPhone(search) : '';
   const sort = document.getElementById('bookings-sort')?.value || 'newest';
   const order = new WeakMap();
   bookings.forEach((b, i) => order.set(b, i)); // ترتيب الإضافة: الأحدث في أول المصفوفة
@@ -5918,7 +5924,8 @@ function timeMinutes(v) {
 function bookingSpan(start, end) {
   const s = timeMinutes(start);
   let e = timeMinutes(end);
-  if (e <= s) e += 1440; // مغادرة بعد نص الليل
+  if (e === s) return [s, s]; // بيانات قديمة: مدة صفرية، مش ٢٤ ساعة وهمية
+  if (e < s) e += 1440; // مغادرة بعد نص الليل
   return [s, e];
 }
 function spansOverlap(aStart, aEnd, bStart, bEnd) {
@@ -6214,6 +6221,10 @@ function nextStep() {
       toast(currentLang === 'ar' ? 'الوصول من ١٠ صباحاً لـ ١١:٥٩ مساءً' : 'Arrival must be 10:00 AM – 11:59 PM', 'error');
       return;
     }
+    if (timeMinutes(end) === sMin) {
+      toast(currentLang === 'ar' ? 'وقت الوصول ومغادرة نفس الساعة — راجع الوقت' : 'Arrival and departure cannot be the same', 'error');
+      return;
+    }
     // تنبيه التعارض مهم — بيشمل الحجوزات اللي بعد نص الليل كمان
     const [cs0, ce0] = bookingSpan(start, end);
     const cbase = dateDayNumber(date) * 1440;
@@ -6224,7 +6235,10 @@ function nextStep() {
       return x.s < ce && x.e > cs;
     });
     if (conflict) {
-      confirmAction('تعارض حجز', `Zone محجوزة لـ ${conflict.name} (${conflict.start}-${conflict.end}). متابعة؟`).then(ok => {
+      confirmAction(currentLang === 'ar' ? 'تعارض حجز' : 'Booking conflict',
+        currentLang === 'ar'
+          ? `المنطقة محجوزة لـ ${conflict.name} (${conflict.start}-${conflict.end}). متابعة؟`
+          : `Zone booked for ${conflict.name} (${conflict.start}-${conflict.end}). Continue?`).then(ok => {
         if (ok) { currentStep = 3; updateStepper(); }
       });
       return;
@@ -6306,7 +6320,11 @@ function saveBooking() {
   if (!name || !phone || !whatsapp || !date || !guests || !selectedZoneId) {
     toast(t('toast.error'), 'error'); return;
   }
-  if (!validatePhones([['الهاتف', phone], ['واتساب', whatsapp]])) return;
+  if (!validatePhones([[currentLang === 'ar' ? 'الهاتف' : 'Phone', phone], [currentLang === 'ar' ? 'واتساب' : 'WhatsApp', whatsapp]])) return;
+  if (timeMinutes(end) === timeMinutes(start)) {
+    toast(currentLang === 'ar' ? 'وقت الوصول ومغادرة نفس الساعة — راجع الوقت' : 'Arrival and departure cannot be the same', 'error');
+    return;
+  }
   if (date < todayStr()) {
     toast(currentLang === 'ar' ? 'لا يمكن حجز تاريخ ماضٍ' : 'Past dates are not allowed', 'error');
     checkBookingDate(); return;
@@ -6362,9 +6380,9 @@ function saveBooking() {
     saveData();
     addNotification('new', t('notif.newBooking'), `${newBooking.name} — ${newBooking.id} — ${zone ? zoneName(zone) : selectedZoneId}`, newBooking.id);
     sendBookingPush('new', bookingPushData(newBooking));
-    clearDraft(true);
     toast(t('toast.saved'), 'success');
   }
+  clearDraft(true); // تعديل أو جديد — المسودة القديمة ما تفضلش بعد الحفظ
 
   // reset form
   document.getElementById('booking-form').reset();
@@ -6557,7 +6575,7 @@ async function submitGuestRegistration() {
       });
       if (error) throw error;
       guest = {
-        id: gid, eventId: data.e || null, eventName: data.n || '',
+        id: gid, eventId: data.e || null, eventName: data.n || '', eventDate: data.d || null,
         name, phone, birthdate: birth, checkedIn: false, createdAt: new Date().toISOString()
       };
     } catch (e) {
@@ -6567,7 +6585,7 @@ async function submitGuestRegistration() {
     }
   } else {
     guest = {
-      id: nextGuestId(), eventId: data.e || null, eventName: data.n || '',
+      id: nextGuestId(), eventId: data.e || null, eventName: data.n || '', eventDate: data.d || null,
       name, phone, birthdate: birth, checkedIn: false, createdAt: new Date().toISOString()
     };
   }
@@ -6819,10 +6837,7 @@ async function deleteGuest(id) {
     const bk = bookings.find(b => b.id === g.eventId);
     if (bk && bk.checkedIn > 0) {
       bk.checkedIn--;
-      if (CLOUD.enabled && CLOUD.client) {
-        CLOUD.client.from('bookings').update({ checked_in: bk.checkedIn })
-          .eq('id', bk.id).then(() => {}).catch(e => cloudWarn(e));
-      }
+      cloudUpdate('bookings', bk.id, { checked_in: bk.checkedIn });
     }
     const removedItems = recentCheckins.filter(c => c.guestId === id);
     recentCheckins = recentCheckins.filter(c => c.guestId !== id);
@@ -6865,7 +6880,10 @@ function editBooking(id) {
   document.getElementById('b-type').value = b.type || 'أخرى';
   document.getElementById('b-guests').value = b.guests || 1;
   document.getElementById('b-start').value = b.start || '18:00';
-  refreshHoursHints(); refreshQuickChips();
+  refreshHoursHints();
+  // احتفظ بوقت المغادرة الأصلي بعد ما التلميح حسب التاريخ كتب قيمته الافتراضية
+  if (b.end) { document.getElementById('b-end').value = b.end; refreshTimeDisplays(); }
+  refreshQuickChips();
   selectedZoneId = b.zoneId;
   renderPackageOptions(b.packageIndex != null ? b.packageIndex : 0);
   const editAuto = autoDeposit();
@@ -6982,7 +7000,9 @@ function buildCustomerShareText(b) {
 function bookingTicketRows(b) {
   const zone = zones.find(z => z.id === b.zoneId) || { name: b.zoneId, nameEn: b.zoneId };
   const pi = Number(b.packageIndex);
-  const perPerson = Number(b.feePerPerson) || (Number.isInteger(pi) && pi >= 0 ? Number(packagePrices()[pi]) || 0 : 0);
+  const storedFee = Number(b.feePerPerson);
+  // التذكرة تعرض سعر الحجز وقت إنشائه — ما تستخدمش سعر الباقة الحالي
+  const perPerson = Number.isFinite(storedFee) && storedFee > 0 ? storedFee : null;
   const time = ((b.start || '') + ' – ' + (b.end || '')).trim() || '—';
   return [
     ['Name', b.name || '—'],
@@ -6994,7 +7014,7 @@ function bookingTicketRows(b) {
     ['Guests', String(Number(b.guests) || 0)],
     ['Package', guestTicketPackageEn(b)],
     ['Deposit', formatMoney(Number(b.deposit) || 0) + ' EGP'],
-    ['Entry Fee', formatMoney(perPerson) + ' EGP']
+    ['Entry Fee', perPerson == null ? '—' : formatMoney(perPerson) + ' EGP']
   ];
 }
 function gatzRoundRect(ctx, x, y, w, h, r) {
@@ -8077,7 +8097,7 @@ let lastScanTime = 0;
 let lastScannedCode = '';
 // منع العد المزدوج: نفس كود الحجز ما يضيفش +1 تاني قبل مرور ٣٠ ثانية
 const DOOR_SCAN_COOLDOWN = 30000;
-let lastAutoCheckin = { code: '', time: 0 };
+const autoCheckinTimes = new Map(); // لكل كود وقته — A,B,A ما يعدّش مرتين
 
 // ماسح موثوق: كاميرا مباشرة + فحص كل إطار (BarcodeDetector أصلي أو html5-qrcode)
 async function startQrScan() {
@@ -8297,8 +8317,9 @@ function handleScannedCode(code) {
     const g = guests.find(x => x.id === gid);
     if (g) {
       const bk = bookings.find(b => b.id === g.eventId);
-      // قيد تاريخ الحضور: تذكرة ضيف لحجز قديم أو مستقبلي ما تُستخدمش
-      if (bk && doorDateBlockToast(bk)) {
+      // قيد تاريخ الحضور: حتى لو الحجز اتحذف، التاريخ المخزّن في الضيف يمنع التذكرة القديمة/المستقبلية
+      const gate = bk || (g.eventDate ? { date: g.eventDate } : null);
+      if (!gate || doorDateBlockToast(gate)) {
         if (doorBeepEnabled) playBeep(330, 220);
         activeDoorBookingId = null;
         document.getElementById('scan-result-card').style.display = 'none';
@@ -8317,20 +8338,15 @@ function handleScannedCode(code) {
       const guestKey = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       recentCheckins.unshift({ id: g.eventId || g.id, name: g.name, count: 1, key: guestKey, guestId: g.id, time: new Date().toLocaleTimeString() });
       if (recentCheckins.length > 8) recentCheckins.pop();
+      lastCheckinUndo = { id: g.eventId || g.id, count: 1, key: guestKey, guestId: g.id };
       saveData(); renderGuests(); renderRecentCheckins();
-      if (CLOUD.enabled && CLOUD.client) {
-        CLOUD.client.from('guests').update({ checked_in: true, entry_time: g.entryTime })
-          .eq('id', g.id).then(() => {}).catch(e => cloudWarn(e));
-      }
+      cloudUpdate('guests', g.id, { checked_in: true, entry_time: g.entryTime });
       // زيادة عدّاد المناسبة إن وُجدت؛ لو وصل للحد الأعلى نبه بدل ما نزيد بصمت
       let counterWarn = '';
       if (bk) {
         if (bk.checkedIn < bk.guests) {
           bk.checkedIn++; saveData(); renderAll();
-          if (CLOUD.enabled && CLOUD.client) {
-            CLOUD.client.from('bookings').update({ checked_in: bk.checkedIn })
-              .eq('id', bk.id).then(() => {}).catch(() => {});
-          }
+          cloudUpdate('bookings', bk.id, { checked_in: bk.checkedIn });
         } else {
           counterWarn = currentLang === 'ar'
             ? '⚠ عدّاد الحجز وصل للحد الأعلى — الضيف اعتُبر داخل، راجع العدد'
@@ -8369,8 +8385,9 @@ function handleScannedCode(code) {
     lookupBookingForDoor();
     // منع العد المزدوج: نفس الكود لا يضيف +1 تاني قبل انتهاء فترة التهدئة
     const now = Date.now();
-    const isRepeat = lastAutoCheckin.code === cleaned && (now - lastAutoCheckin.time) < DOOR_SCAN_COOLDOWN;
-    lastAutoCheckin = { code: cleaned, time: now };
+    const prev = autoCheckinTimes.get(cleaned) || 0;
+    const isRepeat = (now - prev) < DOOR_SCAN_COOLDOWN;
+    autoCheckinTimes.set(cleaned, now);
     if (isRepeat) {
       if (doorBeepEnabled) playBeep(330, 220);
       toast(currentLang === 'ar'
@@ -8468,17 +8485,14 @@ function incrementGuest(count) {
     return;
   }
   if (b.checkedIn + count > b.guests) {
-    toast('Exceeds expected guests', 'warning');
+    toast(currentLang === 'ar' ? 'عدد الضيوف أكبر من المتوقع — هيدخلوا زي ما هم' : 'Exceeds expected guests — admitted as is', 'warning');
   }
   b.checkedIn += count;
   // مفتاح فريد لكل عملية عشان التراجع يشيل العملية الصح مش آخر واحدة بالاسم
   const undoKey = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   lastCheckinUndo = { id: b.id, count, key: undoKey };
   saveData();
-  if (CLOUD.enabled && CLOUD.client) {
-    CLOUD.client.from('bookings').update({ checked_in: b.checkedIn })
-      .eq('id', b.id).then(() => {}).catch(e => cloudWarn(e));
-  }
+  cloudUpdate('bookings', b.id, { checked_in: b.checkedIn });
   document.getElementById('door-checked-in').textContent = b.checkedIn;
   updateProgressRing(b.checkedIn, b.guests);
   const item = { id: b.id, name: b.name, count, key: undoKey, time: new Date().toLocaleTimeString() };
@@ -8522,30 +8536,39 @@ function confirmBatchGuest() {
 }
 
 function undoLastCheckIn() {
-  if (!lastCheckinUndo) { toast('Nothing to undo', 'info'); return; }
-  const b = bookings.find(x => x.id === lastCheckinUndo.id);
-  if (b) {
-    b.checkedIn = Math.max(0, b.checkedIn - lastCheckinUndo.count);
-    saveData();
-    // التراجع لازم يوصل للسيرفر كمان عشان ما يحصلش فرق بين الجهاز والـ Supabase
-    if (CLOUD.enabled && CLOUD.client) {
-      CLOUD.client.from('bookings').update({ checked_in: b.checkedIn })
-        .eq('id', b.id).then(() => {}).catch(e => cloudWarn(e));
+  const ar = currentLang === 'ar';
+  if (!lastCheckinUndo) { toast(ar ? 'مفيش حاجة للتراجع عنها' : 'Nothing to undo', 'info'); return; }
+  if (lastCheckinUndo.guestId) {
+    const g = guests.find(x => x.id === lastCheckinUndo.guestId);
+    if (g) {
+      g.checkedIn = false;
+      delete g.entryTime;
+      const bk = bookings.find(x => x.id === g.eventId);
+      if (bk) {
+        bk.checkedIn = Math.max(0, bk.checkedIn - 1);
+        cloudUpdate('bookings', bk.id, { checked_in: bk.checkedIn });
+      }
+      cloudUpdate('guests', g.id, { checked_in: false, entry_time: null });
+      renderGuests();
     }
-    if (activeDoorBookingId === b.id) {
-      document.getElementById('door-checked-in').textContent = b.checkedIn;
-      updateProgressRing(b.checkedIn, b.guests);
+  } else {
+    const b = bookings.find(x => x.id === lastCheckinUndo.id);
+    if (b) {
+      b.checkedIn = Math.max(0, b.checkedIn - lastCheckinUndo.count);
+      cloudUpdate('bookings', b.id, { checked_in: b.checkedIn });
+      if (activeDoorBookingId === b.id) {
+        document.getElementById('door-checked-in').textContent = b.checkedIn;
+        updateProgressRing(b.checkedIn, b.guests);
+      }
     }
-    // شيل العملية المطابقة من السجل بالمفتاح الفريد (مش آخر واحدة بالاسم)
-    const before = recentCheckins.length;
-    recentCheckins = recentCheckins.filter(c => c.key !== lastCheckinUndo.key);
-    if (recentCheckins.length !== before) {
-      renderRecentCheckins();
-      saveData();
-    }
-    updateQuickDoorSelect();
-    toast('Undone', 'info');
   }
+  // شيل العملية المطابقة من السجل بالمفتاح الفريد (مش آخر واحدة بالاسم)
+  const before = recentCheckins.length;
+  recentCheckins = recentCheckins.filter(c => c.key !== lastCheckinUndo.key);
+  if (recentCheckins.length !== before || lastCheckinUndo.guestId) saveData();
+  renderRecentCheckins();
+  updateQuickDoorSelect();
+  toast(ar ? 'تم التراجع' : 'Undone', 'info');
   lastCheckinUndo = null;
 }
 
@@ -8724,7 +8747,10 @@ document.addEventListener('keydown', e => {
     if (target) setTimeout(() => target.focus(), 30);
   }
   if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-backdrop.open, .lightbox.open').forEach(m => m.classList.remove('open'));
+    document.querySelectorAll('.modal-backdrop.open, .lightbox.open').forEach(m => {
+      if (m.id && typeof closeModal === 'function') closeModal(m.id); // عشان confirm يرجّع false وما يعلّقش
+      else m.classList.remove('open');
+    });
   }
 });
 
@@ -8975,7 +9001,12 @@ async function cloudLoad() {
     // كشف التغييرات قبل الاستبداد لإطلاق إشعارات على الأجهزة التانية
     const prevB = CLOUD.prevBookings, prevG = CLOUD.prevGuests;
     const nextB = br.data ? br.data.map(bFromDb) : bookings;
-    const nextG = gr.data ? gr.data.map(gFromDb) : guests;
+    const nextG = gr.data ? gr.data.map(x => {
+      const g = gFromDb(x);
+      const old = guests.find(y => y.id === g.id);
+      if (!g.eventDate && old && old.eventDate) g.eventDate = old.eventDate;
+      return g;
+    }) : guests;
     if (CLOUD.loadedOnce && prevB && prevG) {
       const was = id => prevB.find(x => x.id === id);
       nextB.forEach(b => {
@@ -9045,6 +9076,11 @@ function cloudSchedulePush() {
   if (!CLOUD.enabled || !CLOUD.canPush || CLOUD.internalSave) return;
   clearTimeout(CLOUD.pushTimer);
   CLOUD.pushTimer = setTimeout(cloudPush, 900);
+}
+async function cloudUpdate(table, id, patch) {
+  if (!CLOUD.enabled || !CLOUD.client || !id) return;
+  const { error } = await CLOUD.client.from(table).update(patch).eq('id', id);
+  if (error) cloudWarn(error.message);
 }
 async function cloudPush() {
   if (!CLOUD.enabled || !CLOUD.client || !CLOUD.canPush) return;
