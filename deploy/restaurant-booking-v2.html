@@ -8839,7 +8839,8 @@ const CLOUD = {
   KEY: 'sb_publishable_UvQ-ZxkssHwgWDX51NLp_w_O3RnaOzc',
   client: null, enabled: false, canPush: false, internalSave: false,
   pushTimer: null, warned: false, channel: null, loading: false,
-  loadedOnce: false, localNotify: {}, prevBookings: null, prevGuests: null
+  loadedOnce: false, localNotify: {}, prevBookings: null, prevGuests: null,
+  hasCancelNote: null // لسه مش متأكدين إن العمود اتضاف في Supabase
 };
 
 // جلسة مستقلة للإشعارات: storageKey مختلف عن جلسة الدخول، فالـ Logout ما يوقفهاش
@@ -8935,8 +8936,8 @@ function bFromDb(r) {
     deposit: Number(r.deposit) || 0, payment: sStr(r.payment), receipt: sStr(r.receipt), verified: !!r.verified,
     packageIndex: r.package_index == null ? 0 : Number(r.package_index),
     feePerPerson: Number(r.fee_per_person) || 0, totalFees: Number(r.total_fees) || 0,
-    cancelled: !!r.cancelled, cancelReason: sStr(r.cancel_reason), cancelledAt: sStr(r.cancelled_at),
-    createdAt: sStr(r.created_at)
+    cancelled: !!r.cancelled, cancelReason: sStr(r.cancel_reason), cancelNote: sStr(r.cancel_note),
+    cancelledAt: sStr(r.cancelled_at), createdAt: sStr(r.created_at)
   };
 }
 function bToDb(b) {
@@ -8947,7 +8948,9 @@ function bToDb(b) {
     deposit: Number(b.deposit) || 0, payment: b.payment || '', receipt: b.receipt || '', verified: !!b.verified,
     package_index: Number(b.packageIndex) || 0, fee_per_person: Number(b.feePerPerson) || 0,
     total_fees: Number(b.totalFees) || 0,
-    cancelled: !!b.cancelled, cancel_reason: b.cancelReason || null, cancelled_at: b.cancelledAt || null
+    cancelled: !!b.cancelled, cancel_reason: b.cancelReason || null, cancelled_at: b.cancelledAt || null,
+    // ما نبعتش العمود إلا لو موجود في الـ DB — عشان المزامنة ما تقفش قبل تشغيل SQL
+    ...(CLOUD.hasCancelNote ? { cancel_note: b.cancelNote || null } : {})
   };
 }
 function gFromDb(r) {
@@ -9012,6 +9015,11 @@ async function cloudLoad() {
     ]);
     const err = br.error || gr.error || zr.error;
     if (err) { cloudWarn(err.message); return false; }
+    // كشف لمرة واحدة: العمود الجديد مش هيتكتب إلا لو متضاف فعلاً
+    if (CLOUD.hasCancelNote === null) {
+      const probe = await CLOUD.client.from('bookings').select('cancel_note').limit(1);
+      CLOUD.hasCancelNote = !probe.error;
+    }
     // لو الـ RLS مخفي الصفوف ما نمسحش البيانات المحلية
     if (Array.isArray(br.data) && br.data.length === 0 && bookings.length > 0) {
       cloudWarn(currentLang === 'ar' ? 'السحابة رجّعت صفر حجوزات — المحلي اتخفوظ' : 'Cloud returned no bookings — local data kept');
