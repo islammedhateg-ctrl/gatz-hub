@@ -4618,6 +4618,10 @@ window.onload = () => {
   updateDraftBar();
   // update lang toggle active
   applyI18n();
+  // بعد ما الـ HTML الجديد اتحمل، شيّل الـ query عشان كل reload ما يفضلش network-first
+  if (new URLSearchParams(location.search).has('fresh')) {
+    history.replaceState(null, '', location.pathname + location.hash);
+  }
   // رابط الدعوة: عرض نموذج تسجيل الضيف (لا يحتاج دخول الموظفين)
   const isInvite = handleInviteHash();
   const applyAuthUI = () => {
@@ -4659,6 +4663,10 @@ window.onload = () => {
       let reloaded = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (reloaded) return;
+        if (formDirty) {
+          toast(currentLang === 'ar' ? 'التحديث جاهز — حفظ بس واعد التحميل' : 'Update ready — save then reload', 'warning', 6000);
+          return;
+        }
         reloaded = true;
         window.location.reload();
       });

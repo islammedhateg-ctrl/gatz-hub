@@ -28,16 +28,20 @@ if (location.protocol === 'http:' && !['127.0.0.1','localhost'].includes(locatio
 <script>
 (function () {
   const local = ['127.0.0.1','localhost'].includes(location.hostname);
-  const base = local ? '' : 'https://' + location.host + '/';
-  const target = base + 'restaurant-booking-v2.html?fresh=1&v=' + Date.now();
+  const proto = local ? location.protocol : 'https:';
+  // خلي مسار المجلد زي ما هو — ما نرميش الـ subpath
+  const target = new URL('./restaurant-booking-v2.html', location.href);
+  target.protocol = proto;
+  target.search = '?fresh=1&v=' + Date.now();
+  target.hash = '';
+  const url = target.href;
   const link = document.getElementById('manual-link');
-  if (link) link.href = target;
+  if (link) link.href = url;
 
   // متعملش unregister للـ Service Worker ولا caches.delete():
   // لو الشبكة فشلت، الكاش هو البديل الوحيد اللي بيخلي التطبيق يشتغل.
   // الرابط الجديد different بـ ?v= فبيجلب HTML جديد من الشبكة لو متاحة.
-  location.replace(target);
-  setTimeout(function () { window.location.href = target; }, 1500);
+  location.replace(url);
 })();
 </script>
 </body>
