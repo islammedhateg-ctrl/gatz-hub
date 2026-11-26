@@ -1,7 +1,7 @@
 /* Gatz. Hub Service Worker — HTML: network-first for fresh/hard reload, cache-first otherwise */
 
-const STATIC_CACHE = 'gatz-hub-static-v19';
-const RUNTIME_CACHE = 'gatz-hub-runtime-v19';
+const STATIC_CACHE = 'gatz-hub-static-v20';
+const RUNTIME_CACHE = 'gatz-hub-runtime-v20';
 const PRECACHE = ['./restaurant-booking-v2', './restaurant-booking-v2.html', './html5-qrcode.min.js', './gatz-word.png', './gatz-word-text.png', './gatz-brand-icon.png', './gatz-badge.png', './manifest.json', './force-update.html'];
 const CRITICAL = ['./restaurant-booking-v2', './restaurant-booking-v2.html', './html5-qrcode.min.js', './manifest.json'];
 let precacheOk = false;
@@ -21,20 +21,17 @@ function canonicalFromKey(key) {
 async function htmlFromCache(key) {
   const canonical = canonicalFromKey(key);
   const rt = await caches.open(RUNTIME_CACHE);
-  let r = await rt.match(key) || await rt.match(canonical);
+  // الـ canonical أولاً — أي مفتاح قديم بـ ?fresh ما يخفيش النسخة الأحدث
+  let r = await rt.match(canonical) || await rt.match(key);
   if (r) return r;
   const st = await caches.open(STATIC_CACHE);
-  return st.match(key) || st.match(canonical) || st.match('./restaurant-booking-v2.html');
+  return st.match(canonical) || st.match(key) || st.match('./restaurant-booking-v2.html');
 }
 
-function storeHtml(res, target, targetKey) {
+function storeHtml(res, target) {
   if (!res || !res.ok) return Promise.resolve();
-  const a = res.clone();
-  const b = res.clone();
-  return caches.open(RUNTIME_CACHE).then(c => Promise.all([
-    c.put(targetKey, a),
-    c.put(canonicalHtmlKey(target), b)
-  ]));
+  // مفتاح واحد بس بدون query — عشان مفاتيح ?fresh ما تتراكمش وتضخّم الكاش
+  return caches.open(RUNTIME_CACHE).then(c => c.put(canonicalHtmlKey(target), res.clone()));
 }
 
 // تثبيت: كل ملف لوحده — فشل واحد ما يمسحش باقي الكاش
@@ -43,7 +40,18 @@ self.addEventListener('install', (e) => {
     const c = await caches.open(STATIC_CACHE);
     const results = await Promise.allSettled(PRECACHE.map(u => c.add(u)));
     precacheOk = results.every((r, i) => CRITICAL.includes(PRECACHE[i]) ? r.status === 'fulfilled' : true);
-    if (precacheOk) self.skipWaiting();
+    if (precacheOk) {
+      // نسخة الـ SW الجديد تظهر فوراً حتى لو كان في runtime نسخة أقدم
+      try {
+        const appUrl = new URL('./restaurant-booking-v2', self.registration.scope).href;
+        const freshHtml = await c.match(appUrl) || await c.match(appUrl + '.html');
+        if (freshHtml) {
+          const rt = await caches.open(RUNTIME_CACHE);
+          await rt.put(appUrl, freshHtml.clone());
+        }
+      } catch (err) {}
+      self.skipWaiting();
+    }
   })());
 });
 
@@ -54,6 +62,17 @@ self.addEventListener('activate', (e) => {
     const keep = [STATIC_CACHE, RUNTIME_CACHE];
     const keys = await caches.keys();
     await Promise.all(keys.filter(k => k.startsWith('gatz-hub-') && !keep.includes(k)).map(k => caches.delete(k)));
+    // تنظيف مفاتيح HTML القديمة اللي كانت بتتكتب بـ ?fresh=1&v=...
+    const appCanonical = canonicalHtmlKey(new URL('./restaurant-booking-v2', self.registration.scope));
+    await Promise.all(keep.map(async (name) => {
+      const c = await caches.open(name);
+      const reqs = await c.keys();
+      const stale = reqs.filter(r => {
+        try { const u = new URL(r.url); return !!u.search && canonicalHtmlKey(u) === appCanonical; }
+        catch (err) { return false; }
+      });
+      await Promise.all(stale.map(r => c.delete(r)));
+    }));
     await self.clients.claim();
   })());
 });
@@ -121,7 +140,7 @@ self.addEventListener('fetch', (e) => {
     targetKey = target.href;
   }
 
-  const isHtml = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html') || url.pathname.endsWith('.html') || target.pathname.endsWith('.html');
+  const isHtml = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html') || url.pathname.endsWith('.html') || target.pathname.endsWith('.html') || target.pathname.endsWith('/restaurant-booking-v2');
   if (isHtml) {
     const cc = req.headers.get('cache-control') || '';
     const pragma = req.headers.get('pragma') || '';
@@ -132,7 +151,7 @@ self.addEventListener('fetch', (e) => {
     const freshFetch = fetch(new Request(targetKey, freshInit))
       .then(async res => {
         if (!res || !res.ok) throw new Error('HTTP ' + (res && res.status));
-        await storeHtml(res, target, targetKey);
+        await storeHtml(res, target);
         return res;
       })
       .catch(fallback);
@@ -144,7 +163,7 @@ self.addEventListener('fetch', (e) => {
     const background = fetch(targetKey)
       .then(async res => {
         if (!res || !res.ok) throw new Error('HTTP ' + (res && res.status));
-        await storeHtml(res, target, targetKey);
+        await storeHtml(res, target);
         return res;
       })
       .catch(() => {});

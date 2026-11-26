@@ -6372,6 +6372,7 @@ function saveBooking() {
 
   if (existing) {
     // تعديل حجز موجود — الحفاظ على ID والحضور
+    const wasCancelled = !!existing.cancelled;
     const oldReceipt = existing.receipt;
     const oldDeposit = existing.deposit;
     const oldPayment = existing.payment;
@@ -6379,14 +6380,23 @@ function saveBooking() {
     const amountChanged = deposit !== oldDeposit;
     const methodChanged = payment !== oldPayment;
     Object.assign(existing, bookingData);
+    // حفظ تعديل على حجز ملغي = العميل غيّر رأيه → يرجع نشط ويتشال سبب الإلغاء
+    if (wasCancelled) {
+      existing.cancelled = false;
+      delete existing.cancelledAt;
+      delete existing.cancelReason;
+      delete existing.cancelNote;
+    }
     // إعادة الاعتماد فقط عند تغيّر الإيصال/المبلغ/طريقة الدفع — لا عند تعديل الاسم أو التاريخ فقط
     if (payment === 'تحويل لحظي' && (receiptChanged || amountChanged || methodChanged)) {
       existing.verified = false;
     }
     saveData();
-    addNotification('info', t('notif.updated') || 'تم تحديث حجز', `${existing.name} — ${existing.id}`, existing.id);
-    sendBookingPush('updated', bookingPushData(existing));
-    toast(t('notif.updated') || 'تم تحديث الحجز', 'success');
+    addNotification(wasCancelled ? 'restored' : 'info',
+      wasCancelled ? (t('notif.restored') || 'تمت استعادة حجز') : (t('notif.updated') || 'تم تحديث حجز'),
+      `${existing.name} — ${existing.id}`, existing.id);
+    sendBookingPush(wasCancelled ? 'restored' : 'updated', bookingPushData(existing));
+    toast(wasCancelled ? (t('booking.restored') || 'تمت استعادة الحجز') : (t('notif.updated') || 'تم تحديث الحجز'), 'success');
     editingBookingId = null;
     document.getElementById('btn-submit').innerHTML = `<i class="fa-solid fa-check"></i> <span data-i18n="action.confirm">تأكيد الحجز</span>`;
     applyI18n();
@@ -6933,7 +6943,9 @@ function editBooking(id) {
   // change submit button label
   document.getElementById('btn-submit').innerHTML = `<i class="fa-solid fa-floppy-disk"></i> <span data-i18n="action.update">حفظ التعديلات</span>`;
   applyI18n();
-  toast(currentLang === 'ar' ? 'عدّل بيانات الحجز ثم احفظ' : 'Edit booking details and save', 'info');
+  toast(b.cancelled
+    ? (currentLang === 'ar' ? 'عدّل بيانات الحجز واحفظه عشان ترجعه نشط' : 'Edit and save to reactivate this booking')
+    : (currentLang === 'ar' ? 'عدّل بيانات الحجز ثم احفظ' : 'Edit booking details and save'), 'info');
 }
 
 function openBookingDetails(id) {
