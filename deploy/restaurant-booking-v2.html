@@ -735,7 +735,9 @@ body.big-targets .switch::after { width: 24px; height: 24px; }
 .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
 .btn-outline:hover { background: var(--surface-2); border-color: var(--border-2); }
 /* ألوان واضحة للأيقونات اللي كانت بترث text-2 الأسود تقريباً */
-.nav-item[data-tab="door"] i { color: var(--primary) !important; }
+.nav-item i { color: var(--info) !important; }
+.nav-item.active i, .nav-item[data-tab="door"] i { color: var(--primary) !important; }
+.icon-btn[title="Logout"] i { color: var(--info) !important; }
 #theme-icon { color: var(--primary) !important; }
 #notif-btn i { color: var(--info) !important; }
 .btn i.fa-eraser { color: var(--info) !important; }
