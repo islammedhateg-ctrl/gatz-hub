@@ -539,8 +539,7 @@ body.big-targets .switch::after { width: 24px; height: 24px; }
 .notif-status.on .dot { background: var(--success); }
 .notif-status.off { color: var(--danger); }
 .notif-status.off .dot { background: var(--danger); }
-#notif-row.state-on { background: #E6F4EE !important; border-color: #b7e3cf !important; }
-#notif-row.state-off { background: #FBE9E7 !important; border-color: #f3c4bd !important; }
+/* كرت الإشعارات بنفس لون باقي الكروت — الحالة بتيجي من النقطة والكلمة (متوافقة مع الثيم) */
 .sound-row .sound-info b { display: block; font-size: .9rem; font-weight: 700; }
 .sound-row .sound-info span { font-size: .75rem; color: var(--muted); }
 .sound-row .sound-actions { display: flex; align-items: center; gap: 8px; }
@@ -2365,7 +2364,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
           </div>
 
           <!-- Browser notification permission -->
-          <div class="sound-row" id="notif-row" style="margin-bottom:12px; background:var(--primary-soft); border-color:transparent;">
+          <div class="sound-row" id="notif-row" style="margin-bottom:12px;">
             <div class="sound-icon"><i class="fa-regular fa-bell"></i></div>
             <div class="sound-info">
               <b data-i18n="notif.browserTitle">إشعارات المتصفح</b>
