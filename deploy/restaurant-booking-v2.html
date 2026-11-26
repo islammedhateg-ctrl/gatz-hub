@@ -6297,10 +6297,21 @@ function copyAccount() {
    ============================================================ */
 function generateBookingId() {
   const used = new Set(bookings.map(b => String(b.id)));
-  let n = 1001;
-  while (used.has('BK-' + n)) n++;
+  // رقم عشوائي: جهازين أوفتлайн ما يطلّعوش نفس الـ ID في السحابة
+  const make = () => {
+    try {
+      const a = new Uint32Array(1);
+      (window.crypto || window.msCrypto).getRandomValues(a);
+      return 'BK-' + String(a[0] % 100000000).padStart(8, '0');
+    } catch (e) {
+      return 'BK-' + (String(Date.now()).slice(-7) + String(Math.floor(Math.random() * 100)).padStart(2, '0'));
+    }
+  };
+  let id = make();
+  let guard = 0;
+  while (used.has(id) && guard++ < 20) id = make();
   const el = document.getElementById('b-id');
-  if (el) el.value = 'BK-' + n;
+  if (el) el.value = id;
 }
 
 function saveBooking() {
@@ -6375,7 +6386,13 @@ function saveBooking() {
     document.getElementById('btn-submit').innerHTML = `<i class="fa-solid fa-check"></i> <span data-i18n="action.confirm">تأكيد الحجز</span>`;
     applyI18n();
   } else {
-    const newBooking = { id: document.getElementById('b-id').value, checkedIn: 0, ...bookingData };
+    // مسودة قديمة ممكن تحمل ID استخدمه بالفعل — جدّده قبل الحفظ
+    let newId = document.getElementById('b-id').value;
+    if (bookings.some(x => x.id === newId)) {
+      generateBookingId();
+      newId = document.getElementById('b-id').value;
+    }
+    const newBooking = { id: newId, checkedIn: 0, ...bookingData };
     bookings.unshift(newBooking);
     saveData();
     addNotification('new', t('notif.newBooking'), `${newBooking.name} — ${newBooking.id} — ${zone ? zoneName(zone) : selectedZoneId}`, newBooking.id);
@@ -8882,7 +8899,10 @@ async function pushAccessToken() {
 }
 
 function cloudInit() {
-  if (!window.supabase || !CLOUD.URL || !CLOUD.KEY) return false;
+  if (!window.supabase || !CLOUD.URL || !CLOUD.KEY) {
+    cloudWarn(currentLang === 'ar' ? 'مكتبة السحابة غير محمّلة — يعمل الوضع المحلي' : 'Cloud library unavailable — using local mode');
+    return false;
+  }
   try {
     CLOUD.client = window.supabase.createClient(CLOUD.URL, CLOUD.KEY, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
@@ -8891,7 +8911,10 @@ function cloudInit() {
     const hint = document.getElementById('auth-demo-hint');
     if (hint) hint.style.display = 'none';
     return true;
-  } catch (e) { return false; }
+  } catch (e) {
+    cloudWarn((e && e.message) || (currentLang === 'ar' ? 'تعذّر تهيئة السحابة — يعمل الوضع المحلي' : 'Cloud setup failed — using local mode'));
+    return false;
+  }
 }
 function cloudWarn(e) {
   const detail = (e && typeof e === 'object' && e.message) ? e.message : (typeof e === 'string' ? e : '');
