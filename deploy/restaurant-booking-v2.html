@@ -5108,11 +5108,11 @@ function buildBookingsTable(list, compact = false) {
         <td>
           <div style="display:flex; gap:4px;">
             <button class="btn btn-ghost btn-sm" onclick="openBookingDetails('${jsSafe(b.id)}')" title="Details"><i class="fa-solid fa-eye"></i></button>
-            <button class="btn btn-ghost btn-sm" onclick="editBooking('${jsSafe(b.id)}')" title="Edit"><i class="fa-solid fa-pen-to-square" style="color:var(--info);"></i></button>
+            ${isBookingExpired(b) ? '' : `<button class="btn btn-ghost btn-sm" onclick="editBooking('${jsSafe(b.id)}')" title="Edit"><i class="fa-solid fa-pen-to-square" style="color:var(--info);"></i></button>`}
             <button class="btn btn-ghost btn-sm" onclick="openQrModal('${jsSafe(b.id)}')" title="QR"><i class="fa-solid fa-qrcode"></i></button>
             ${isPendingTransfer(b) ? `<button class="btn btn-success btn-sm" onclick="verifyTransfer('${jsSafe(b.id)}')" title="${t('finance.verifiedOnly')}"><i class="fa-solid fa-check"></i></button>` : ''}
-            <!-- إلغاء الحجز (يحافظ على السجل) -->
-            ${!b.cancelled ? `<button class="btn btn-ghost btn-sm" onclick="cancelBooking('${jsSafe(b.id)}')" title="Cancel"><i class="fa-solid fa-ban" style="color:var(--warning);"></i></button>` : `<button class="btn btn-ghost btn-sm" onclick="restoreBooking('${jsSafe(b.id)}')" title="Restore"><i class="fa-solid fa-rotate-left" style="color:var(--success);"></i></button>`}
+            <!-- إلغاء/استعادة الحجز (يحافظ على السجل) — ممنوع بعد انتهاء التاريخ -->
+            ${isBookingExpired(b) ? '' : (!b.cancelled ? `<button class="btn btn-ghost btn-sm" onclick="cancelBooking('${jsSafe(b.id)}')" title="Cancel"><i class="fa-solid fa-ban" style="color:var(--warning);"></i></button>` : `<button class="btn btn-ghost btn-sm" onclick="restoreBooking('${jsSafe(b.id)}')" title="Restore"><i class="fa-solid fa-rotate-left" style="color:var(--success);"></i></button>`)}
           </div>
         </td>
       </tr>
@@ -5718,6 +5718,12 @@ function todayStr() { return dateIso(); }
 // الحجز المنتهي: تاريخه قبل اليوم (يظل في السجل لكن لا يُسمح بدخوله)
 function isBookingExpired(b) { return !!b && !!b.date && b.date < todayStr(); }
 function expiredLabel() { return currentLang === 'ar' ? 'منتهي' : 'Expired'; }
+// الحجز المنتهي يظل في السجل للقراءة فقط — منع أي تعديل/إلغاء/استعادة حتى لو استُدعت الدالة مباشرة
+function expiredActionBlocked(b) {
+  if (!isBookingExpired(b)) return false;
+  toast(currentLang === 'ar' ? 'الحجز منتهي — لا يمكن تعديله أو إلغاؤه' : 'This booking has expired — it can no longer be edited or cancelled', 'warning');
+  return true;
+}
 
 const dateDaysAR = ['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
 const dateDaysEN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -6881,7 +6887,7 @@ function exportGuestsCSV() {
    ============================================================ */
 function editBooking(id) {
   const b = bookings.find(x => x.id === id);
-  if (!b) return;
+  if (!b || expiredActionBlocked(b)) return;
   // Switch first (showTab resets edit state), then set edit mode
   showTab('new-booking', document.querySelector('[data-tab=new-booking]'));
   editingBookingId = id;
@@ -7338,7 +7344,7 @@ function verifyTransfer(id) {
 let pendingCancelId = null;
 function cancelBooking(id) {
   const b = bookings.find(x => x.id === id);
-  if (!b) return;
+  if (!b || expiredActionBlocked(b)) return;
   pendingCancelId = id;
   document.getElementById('cancel-booking-info').textContent = `${b.name} — ${b.id}`;
   document.getElementById('cancel-reason-select').value = '';
@@ -7357,7 +7363,7 @@ function confirmCancelBooking() {
   const reasonVal = document.getElementById('cancel-reason-select').value;
   if (!reasonVal) { toast(t('cancel.errReason'), 'error'); return; }
   const b = bookings.find(x => x.id === pendingCancelId);
-  if (!b) { closeModal('cancel-reason-modal'); return; }
+  if (!b || expiredActionBlocked(b)) { closeModal('cancel-reason-modal'); return; }
   b.cancelled = true;
   b.cancelledAt = new Date().toISOString();
   b.cancelReason = reasonVal;
@@ -7377,7 +7383,7 @@ function cancelReasonLabel(val) {
 // استعادة حجز ملغي
 function restoreBooking(id) {
   const b = bookings.find(x => x.id === id);
-  if (!b) return;
+  if (!b || expiredActionBlocked(b)) return;
   b.cancelled = false;
   delete b.cancelledAt;
   delete b.cancelReason;
