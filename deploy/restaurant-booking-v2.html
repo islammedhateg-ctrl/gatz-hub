@@ -2076,11 +2076,6 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                     <select class="input" id="b-package" onchange="updatePackageFee(); syncDepositField(); updateFees();"></select>
                   </div>
                 </div>
-                <div class="form-group">
-                  <label data-i18n="field.packageFee">الرسوم (لكل ضيف)</label>
-                  <input class="input" type="text" id="b-package-fee" readonly tabindex="-1" aria-readonly="true">
-                  <div class="helper" id="package-fee-hint"></div>
-                </div>
               </div>
               <div class="form-group full" style="margin-top:16px;">
                 <label data-i18n="field.zone">اختيار المنطقة <span class="req">*</span></label>
@@ -2089,12 +2084,19 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
             </div>
             <!-- Step 3: Payment -->
             <div class="step-panel" data-step="3" style="display:none;">
-              <div class="form-group full" style="margin-bottom:16px;">
-                <label data-i18n="field.deposit">قيمة الديبوزيت (ج.م) <span class="req">*</span></label>
-                <div class="has-icon"><i class="fa-solid fa-sack-dollar field-icon"></i>
-                  <input class="input" type="number" id="b-deposit" min="0" value="0" required oninput="markDepositManual(); updateFees();">
+              <div class="form-grid" style="margin-bottom:16px;">
+                <div class="form-group">
+                  <label data-i18n="field.deposit">قيمة الديبوزيت (ج.م) <span class="req">*</span></label>
+                  <div class="has-icon"><i class="fa-solid fa-sack-dollar field-icon"></i>
+                    <input class="input" type="number" id="b-deposit" min="0" value="0" required oninput="markDepositManual(); updateFees();">
+                  </div>
+                  <div class="helper" id="deposit-hint" style="color:var(--muted);"></div>
                 </div>
-                <div class="helper" id="deposit-hint" style="color:var(--muted);"></div>
+                <div class="form-group">
+                  <label data-i18n="field.packageFee">الرسوم (لكل ضيف)</label>
+                  <input class="input" type="text" id="b-package-fee" readonly tabindex="-1" aria-readonly="true">
+                  <div class="helper" id="package-fee-hint"></div>
+                </div>
               </div>
               <div class="form-group full" style="margin-bottom:16px;">
                 <div id="fees-summary" style="font-size:.8rem; color:var(--muted); text-align:center;"></div>
