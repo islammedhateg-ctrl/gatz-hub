@@ -838,6 +838,9 @@ select.input option:checked { background: var(--primary-soft); color: var(--prim
 }
 .guest-stepper button:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
 .guest-stepper button:active { transform: scale(.94); }
+/* الرسوم المأخوذة من الباقة — للقراءة فقط */
+#b-package-fee { background: var(--primary-soft); border-color: transparent; color: var(--primary); font-weight: 800; cursor: default; }
+#b-package-fee:focus { border-color: transparent; box-shadow: none; }
 .input.error { border-color: var(--danger); }
 /* منتقي التاريخ والوقت — تصميم احترافي */
 .picker-field { position: relative; }
@@ -2068,10 +2071,15 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                   <div class="helper" id="capacity-warning"></div>
                 </div>
                 <div class="form-group">
-                  <label data-i18n="field.package">الباقة (رسوم لكل ضيف)</label>
+                  <label data-i18n="field.package">الباقة</label>
                   <div class="has-icon"><i class="fa-solid fa-crown field-icon"></i>
-                    <select class="input" id="b-package" onchange="syncDepositField(); updateFees();"></select>
+                    <select class="input" id="b-package" onchange="updatePackageFee(); syncDepositField(); updateFees();"></select>
                   </div>
+                </div>
+                <div class="form-group">
+                  <label data-i18n="field.packageFee">الرسوم (لكل ضيف)</label>
+                  <input class="input" type="text" id="b-package-fee" readonly tabindex="-1" aria-readonly="true">
+                  <div class="helper" id="package-fee-hint"></div>
                 </div>
               </div>
               <div class="form-group full" style="margin-top:16px;">
@@ -3104,7 +3112,8 @@ const I18N = {
     'picker.weekday': 'يوم عمل',
     'picker.weekendDay': 'نهاية أسبوع',
     'field.type': 'نوع الحجز',
-    'field.package': 'الباقة (رسوم لكل ضيف)',
+    'field.package': 'الباقة',
+    'field.packageFee': 'الرسوم (لكل ضيف)',
     'field.fees': 'الرسوم',
     'field.totalDue': 'الإجمالي المستحق',
     'field.guests': 'عدد الأفراد',
@@ -3511,7 +3520,8 @@ const I18N = {
     'picker.weekday': 'Weekday',
     'picker.weekendDay': 'Weekend',
     'field.type': 'Booking Type',
-    'field.package': 'Package (fee per person)',
+    'field.package': 'Package',
+    'field.packageFee': 'Fee (per person)',
     'field.fees': 'Fees',
     'field.totalDue': 'Total due',
     'field.guests': 'Number of Guests',
@@ -5696,11 +5706,23 @@ function renderPackageOptions(keepIndex) {
   const active = pkgs.map(p => p.on !== false);
   const available = prices.map((_, i) => i).filter(i => active[i] !== false);
   const wanted = keepIndex != null ? keepIndex : (Number(sel.value) || 0);
-  sel.innerHTML = available.map(i => `<option value="${i}">${escapeHtml(names[i])} — ${formatMoney(prices[i])} ${cur()}</option>`).join('')
+  sel.innerHTML = available.map(i => `<option value="${i}">${escapeHtml(names[i])}</option>`).join('')
     || `<option value="" disabled>${t('pkg.none') || 'No packages available'}</option>`;
   sel.value = String(available.includes(wanted) ? wanted : (available[0] != null ? available[0] : ''));
+  updatePackageFee();
   syncDepositField();
   updateFees();
+}
+// الرسوم جنب الباقة: سعر الضيف + الإجمالي الحالي حسب عدد الأفراد
+function updatePackageFee() {
+  const fee = document.getElementById('b-package-fee');
+  if (!fee) return;
+  const idx = Number(document.getElementById('b-package')?.value || 0);
+  const per = Number(packagePrices()[idx]) || 0;
+  const guests = Number(document.getElementById('b-guests')?.value) || 0;
+  fee.value = `${formatMoney(per)} ${cur()}`;
+  const hint = document.getElementById('package-fee-hint');
+  if (hint) hint.innerHTML = `${formatMoney(guests)} × ${formatMoney(per)} ${cur()} = <b style="color:var(--success)">${formatMoney(guests * per)} ${cur()}</b>${currentLang === 'ar' ? ' الإجمالي' : ' total'}`;
 }
 function autoDeposit() {
   const idx = Number(document.getElementById('b-package')?.value || 0);
@@ -6111,6 +6133,7 @@ function checkBookingDate() {
 }
 function checkZoneCapacity() {
   checkBookingDate();
+  updatePackageFee();
   renderZoneCards();
   const z = zones.find(x => x.id === selectedZoneId);
   const guests = Number(document.getElementById('b-guests').value) || 0;
