@@ -2095,11 +2095,7 @@ button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
                 <div class="form-group">
                   <label data-i18n="field.packageFee">الرسوم (لكل ضيف)</label>
                   <input class="input" type="text" id="b-package-fee" readonly tabindex="-1" aria-readonly="true">
-                  <div class="helper" id="package-fee-hint"></div>
                 </div>
-              </div>
-              <div class="form-group full" style="margin-bottom:16px;">
-                <div id="fees-summary" style="font-size:.8rem; color:var(--muted); text-align:center;"></div>
               </div>
               <div class="form-group full" style="margin-bottom:16px;">
                 <label data-i18n="field.payment">طريقة الدفع <span class="req">*</span></label>
@@ -5745,16 +5741,12 @@ function syncDepositField(force) {
   if (force || !depositEditable() || !depositManual) el.value = autoDeposit();
 }
 function updateFees() {
-  const el = document.getElementById('fees-summary');
-  if (!el) return;
   const idx = Number(document.getElementById('b-package')?.value || 0);
   const per = Number(packagePrices()[idx]) || 0;
   const guests = Number(document.getElementById('b-guests')?.value) || 0;
   const dep = Number(document.getElementById('b-deposit')?.value) || 0;
-  const fees = guests * per;
   const pct = depositPercent(zones.find(x => x.id === selectedZoneId));
   const auto = autoDeposit();
-  el.innerHTML = `${formatMoney(guests)} × ${formatMoney(per)} ${cur()} = <b style="color:var(--brand)">${formatMoney(fees)} ${cur()}</b> &nbsp;·&nbsp; ${t('field.totalDue') || 'Total'}: <b>${formatMoney(fees + dep)} ${cur()}</b>`;
   const hint = document.getElementById('deposit-hint');
   if (hint) {
     const manual = depositEditable() && depositManual && Math.abs(dep - auto) > 0.0001;
